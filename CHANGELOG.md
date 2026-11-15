@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.0
+
+- `DisplayList.paintOrder`, the stable sort of commands by layer, with proofs that it is a permutation, sorted by layer and keeps list order within a layer, and that painting in this order gives `pixelColor`.
+
 ## v0.5.0
 
 - Took the square and clamp lemmas and `clamp` from inkproof-float; `clamp` now takes the interval first.
