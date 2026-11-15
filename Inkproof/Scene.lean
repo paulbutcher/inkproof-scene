@@ -7,3 +7,6 @@ import Inkproof.Scene.DisplayList
 import Inkproof.Scene.Coverage
 import Inkproof.Scene.Clip
 import Inkproof.Scene.Line
+import Inkproof.Scene.Meet
+import Inkproof.Scene.Rasterize
+import Inkproof.Scene.Render

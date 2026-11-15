@@ -20,3 +20,9 @@ A display list is an array of commands, each with a layer, a colour and a shape:
 
 Anti-aliased geometry, where a renderer chooses it, fades the outer edge of these triangles. It differs from the aliased model by shading partial coverage, so it can lower the opacity of a pixel the model covers but never leaves a covered pixel unreached by geometry; guarantees stated under the model (TCB-2) hold for the geometry, not for the shaded values.
 
+## Reference rasterizer
+
+`Shape.meetsB` decides, in exact rational arithmetic, whether a shape's region meets a closed window, and `Shape.meetsB_iff` proves it agrees with `Shape.region`, so the rasterizer's coverage is the model's for every command kind. Each primitive reduces to a few exact tests (`Meet.lean`): a segment against a window is a feasibility problem in the segment parameter; a thickened segment against a window is the window widened sideways, widened vertically, and four corner discs; a swept quadrilateral is four such problems, one per ordering of its ends; a clipped shape is tested against the window intersected with the scissor. The test is per pixel and per command with no bounding-box culling, which keeps the proof direct and makes it a reference rather than a fast renderer.
+
+`render` gives each pixel the colour of the command on top there (`winner`: the covering command of greatest layer, the last in the list among those) or the background when none covers it; `pixelColor_of_covers` and `pixelColor_of_not_covers` state this. Painting replaces the colour outright: blending is not part of the model.
+
