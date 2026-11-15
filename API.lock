@@ -1,0 +1,115 @@
+def Inkproof.Scene.Between : Rat → Rat → Rat → Prop
+structure Inkproof.Scene.Color : Type
+field Inkproof.Scene.Color.a : Inkproof.Scene.Color → UInt8
+field Inkproof.Scene.Color.b : Inkproof.Scene.Color → UInt8
+field Inkproof.Scene.Color.g : Inkproof.Scene.Color → UInt8
+constructor Inkproof.Scene.Color.mk : UInt8 → UInt8 → UInt8 → UInt8 → Inkproof.Scene.Color
+field Inkproof.Scene.Color.r : Inkproof.Scene.Color → UInt8
+structure Inkproof.Scene.Column : Type
+field Inkproof.Scene.Column.hi : Inkproof.Scene.Column → Rat
+field Inkproof.Scene.Column.lo : Inkproof.Scene.Column → Rat
+constructor Inkproof.Scene.Column.mk : Rat → Rat → Rat → Inkproof.Scene.Column
+field Inkproof.Scene.Column.x : Inkproof.Scene.Column → Rat
+structure Inkproof.Scene.Command : Type
+def Inkproof.Scene.Command.Covers : Inkproof.Scene.Command → Inkproof.Scene.Pixel → Prop
+field Inkproof.Scene.Command.color : Inkproof.Scene.Command → Inkproof.Scene.Color
+theorem Inkproof.Scene.Command.covers_of_mem : ∀ {c : Inkproof.Scene.Command} {px : Inkproof.Scene.Pixel} {p : Inkproof.Scene.Pt}, c.shape.region p → px.Contains p → c.Covers px
+field Inkproof.Scene.Command.layer : Inkproof.Scene.Command → Nat
+constructor Inkproof.Scene.Command.mk : Nat → Inkproof.Scene.Color → Inkproof.Scene.Shape → Inkproof.Scene.Command
+field Inkproof.Scene.Command.shape : Inkproof.Scene.Command → Inkproof.Scene.Shape
+def Inkproof.Scene.DisplayList : Type
+def Inkproof.Scene.DisplayList.Covers : Inkproof.Scene.DisplayList → Inkproof.Scene.Pixel → Prop
+theorem Inkproof.Scene.DisplayList.Covers.mono : ∀ {a b : Inkproof.Scene.DisplayList}, (∀ (c : Inkproof.Scene.Command), c ∈ a → c ∈ b) → ∀ {px : Inkproof.Scene.Pixel}, a.Covers px → b.Covers px
+theorem Inkproof.Scene.DisplayList.covers_append : ∀ {a b : Inkproof.Scene.DisplayList} {px : Inkproof.Scene.Pixel}, (a ++ b).Covers px ↔ a.Covers px ∨ b.Covers px
+theorem Inkproof.Scene.DisplayList.exists_covered : ∀ {dl : Inkproof.Scene.DisplayList} {g : Inkproof.Scene.Grid}, 0 < g.w → 0 < g.h → ∀ {c : Inkproof.Scene.Command}, c ∈ dl → ∀ {p : Inkproof.Scene.Pt}, c.shape.region p → g.Holds p → ∃ px, g.Has px ∧ dl.Covers px
+structure Inkproof.Scene.Grid : Type
+def Inkproof.Scene.Grid.Has : Inkproof.Scene.Grid → Inkproof.Scene.Pixel → Prop
+def Inkproof.Scene.Grid.Holds : Inkproof.Scene.Grid → Inkproof.Scene.Pt → Prop
+theorem Inkproof.Scene.Grid.exists_pixel : ∀ (g : Inkproof.Scene.Grid), 0 < g.w → 0 < g.h → ∀ {p : Inkproof.Scene.Pt}, g.Holds p → ∃ px, g.Has px ∧ px.Contains p
+field Inkproof.Scene.Grid.h : Inkproof.Scene.Grid → Nat
+constructor Inkproof.Scene.Grid.mk : Nat → Nat → Inkproof.Scene.Grid
+field Inkproof.Scene.Grid.w : Inkproof.Scene.Grid → Nat
+inductive Inkproof.Scene.Item : Type → Type
+def Inkproof.Scene.Item.chain : {α : Type} → (α → Inkproof.Scene.Region) → (α → α → Inkproof.Scene.Region) → List (Inkproof.Scene.Item α) → Inkproof.Scene.Region
+theorem Inkproof.Scene.Item.chain_append_gap : ∀ {α : Type} {single : α → Inkproof.Scene.Region} {join : α → α → Inkproof.Scene.Region} (xs ys : List (Inkproof.Scene.Item α)) (p : Inkproof.Scene.Pt), Inkproof.Scene.Item.chain single join (xs ++ Inkproof.Scene.Item.gap :: ys) p ↔ Inkproof.Scene.Item.chain single join xs p ∨ Inkproof.Scene.Item.chain single join ys p
+constructor Inkproof.Scene.Item.gap : {α : Type} → Inkproof.Scene.Item α
+theorem Inkproof.Scene.Item.single_sub_chain : ∀ {α : Type} {single : α → Inkproof.Scene.Region} {join : α → α → Inkproof.Scene.Region} {items : List (Inkproof.Scene.Item α)} {a : α}, Inkproof.Scene.Item.val a ∈ items → (single a).Sub (Inkproof.Scene.Item.chain single join items)
+constructor Inkproof.Scene.Item.val : {α : Type} → α → Inkproof.Scene.Item α
+inductive Inkproof.Scene.MarkerShape : Type
+constructor Inkproof.Scene.MarkerShape.circle : Inkproof.Scene.MarkerShape
+def Inkproof.Scene.MarkerShape.ofNat : Nat → Inkproof.Scene.MarkerShape
+theorem Inkproof.Scene.MarkerShape.ofNat_ctorIdx : ∀ (x : Inkproof.Scene.MarkerShape), Inkproof.Scene.MarkerShape.ofNat x.ctorIdx = x
+constructor Inkproof.Scene.MarkerShape.square : Inkproof.Scene.MarkerShape
+structure Inkproof.Scene.Pixel : Type
+def Inkproof.Scene.Pixel.Contains : Inkproof.Scene.Pixel → Inkproof.Scene.Pt → Prop
+field Inkproof.Scene.Pixel.col : Inkproof.Scene.Pixel → Nat
+constructor Inkproof.Scene.Pixel.mk : Nat → Nat → Inkproof.Scene.Pixel
+field Inkproof.Scene.Pixel.row : Inkproof.Scene.Pixel → Nat
+structure Inkproof.Scene.Pt : Type
+constructor Inkproof.Scene.Pt.mk : Rat → Rat → Inkproof.Scene.Pt
+field Inkproof.Scene.Pt.x : Inkproof.Scene.Pt → Rat
+field Inkproof.Scene.Pt.y : Inkproof.Scene.Pt → Rat
+structure Inkproof.Scene.Rect : Type
+constructor Inkproof.Scene.Rect.mk : Rat → Rat → Rat → Rat → Inkproof.Scene.Rect
+field Inkproof.Scene.Rect.x0 : Inkproof.Scene.Rect → Rat
+field Inkproof.Scene.Rect.x1 : Inkproof.Scene.Rect → Rat
+field Inkproof.Scene.Rect.y0 : Inkproof.Scene.Rect → Rat
+field Inkproof.Scene.Rect.y1 : Inkproof.Scene.Rect → Rat
+def Inkproof.Scene.Region : Type
+def Inkproof.Scene.Region.Covers : Inkproof.Scene.Region → Inkproof.Scene.Pixel → Prop
+theorem Inkproof.Scene.Region.Covers.mono : ∀ {a b : Inkproof.Scene.Region}, a.Sub b → ∀ {px : Inkproof.Scene.Pixel}, a.Covers px → b.Covers px
+def Inkproof.Scene.Region.Sub : Inkproof.Scene.Region → Inkproof.Scene.Region → Prop
+def Inkproof.Scene.Region.box : Rat → Rat → Rat → Rat → Inkproof.Scene.Region
+theorem Inkproof.Scene.Region.covers_of_mem : ∀ {r : Inkproof.Scene.Region} {px : Inkproof.Scene.Pixel} {p : Inkproof.Scene.Pt}, r p → px.Contains p → r.Covers px
+def Inkproof.Scene.Region.disc : Inkproof.Scene.Pt → Rat → Inkproof.Scene.Region
+theorem Inkproof.Scene.Region.exists_covered : ∀ {r : Inkproof.Scene.Region} {g : Inkproof.Scene.Grid}, 0 < g.w → 0 < g.h → ∀ {p : Inkproof.Scene.Pt}, r p → g.Holds p → ∃ px, g.Has px ∧ r.Covers px
+def Inkproof.Scene.Region.point : Inkproof.Scene.Pt → Inkproof.Scene.Region
+def Inkproof.Scene.Region.seg : Inkproof.Scene.Pt → Inkproof.Scene.Pt → Inkproof.Scene.Region
+def Inkproof.Scene.Region.span : Rat → Rat → Rat → Rat → Rat → Rat → Inkproof.Scene.Region
+theorem Inkproof.Scene.Region.sub_thicken : ∀ (r : Rat) (a : Inkproof.Scene.Region), a.Sub (Inkproof.Scene.Region.thicken r a)
+def Inkproof.Scene.Region.thicken : Rat → Inkproof.Scene.Region → Inkproof.Scene.Region
+inductive Inkproof.Scene.Shape : Type
+constructor Inkproof.Scene.Shape.area : Rat → List (Inkproof.Scene.Item Inkproof.Scene.Pt) → Inkproof.Scene.Shape
+constructor Inkproof.Scene.Shape.envelope : List (Inkproof.Scene.Item Inkproof.Scene.Column) → Inkproof.Scene.Shape
+constructor Inkproof.Scene.Shape.marker : Inkproof.Scene.MarkerShape → Inkproof.Scene.Pt → Rat → Inkproof.Scene.Shape
+constructor Inkproof.Scene.Shape.rect : Inkproof.Scene.Rect → Inkproof.Scene.Shape
+def Inkproof.Scene.Shape.region : Inkproof.Scene.Shape → Inkproof.Scene.Region
+constructor Inkproof.Scene.Shape.strip : Rat → List (Inkproof.Scene.Item Inkproof.Scene.Pt) → Inkproof.Scene.Shape
+theorem Inkproof.Scene.Shape.strip_region_of_val : ∀ {hw : Rat} {items : List (Inkproof.Scene.Item Inkproof.Scene.Pt)} {a : Inkproof.Scene.Pt}, Inkproof.Scene.Item.val a ∈ items → (Inkproof.Scene.Shape.strip hw items).region a
+constructor Inkproof.Scene.Shape.text : Inkproof.Scene.Rect → String → Inkproof.Scene.Shape
+theorem Inkproof.Scene.exists_cell : ∀ (x : Rat) (n : Nat), 0 ≤ x → x ≤ ↑n → 0 < n → ∃ c, c < n ∧ ↑c ≤ x ∧ x ≤ ↑c + 1
+instance Inkproof.Scene.instDecidableEqColor : DecidableEq Inkproof.Scene.Color
+def Inkproof.Scene.instDecidableEqColor.decEq : (x x_1 : Inkproof.Scene.Color) → Decidable (x = x_1)
+instance Inkproof.Scene.instDecidableEqColumn : DecidableEq Inkproof.Scene.Column
+def Inkproof.Scene.instDecidableEqColumn.decEq : (x x_1 : Inkproof.Scene.Column) → Decidable (x = x_1)
+instance Inkproof.Scene.instDecidableEqGrid : DecidableEq Inkproof.Scene.Grid
+def Inkproof.Scene.instDecidableEqGrid.decEq : (x x_1 : Inkproof.Scene.Grid) → Decidable (x = x_1)
+instance Inkproof.Scene.instDecidableEqItem : {α : Type} → [DecidableEq α] → DecidableEq (Inkproof.Scene.Item α)
+def Inkproof.Scene.instDecidableEqItem.decEq : {α : Type} → [DecidableEq α] → (x x_1 : Inkproof.Scene.Item α) → Decidable (x = x_1)
+instance Inkproof.Scene.instDecidableEqMarkerShape : DecidableEq Inkproof.Scene.MarkerShape
+instance Inkproof.Scene.instDecidableEqPixel : DecidableEq Inkproof.Scene.Pixel
+def Inkproof.Scene.instDecidableEqPixel.decEq : (x x_1 : Inkproof.Scene.Pixel) → Decidable (x = x_1)
+instance Inkproof.Scene.instDecidableEqPt : DecidableEq Inkproof.Scene.Pt
+def Inkproof.Scene.instDecidableEqPt.decEq : (x x_1 : Inkproof.Scene.Pt) → Decidable (x = x_1)
+instance Inkproof.Scene.instDecidableEqRect : DecidableEq Inkproof.Scene.Rect
+def Inkproof.Scene.instDecidableEqRect.decEq : (x x_1 : Inkproof.Scene.Rect) → Decidable (x = x_1)
+instance Inkproof.Scene.instReprColor : Repr Inkproof.Scene.Color
+def Inkproof.Scene.instReprColor.repr : Inkproof.Scene.Color → Nat → Std.Format
+instance Inkproof.Scene.instReprColumn : Repr Inkproof.Scene.Column
+def Inkproof.Scene.instReprColumn.repr : Inkproof.Scene.Column → Nat → Std.Format
+instance Inkproof.Scene.instReprCommand : Repr Inkproof.Scene.Command
+def Inkproof.Scene.instReprCommand.repr : Inkproof.Scene.Command → Nat → Std.Format
+instance Inkproof.Scene.instReprGrid : Repr Inkproof.Scene.Grid
+def Inkproof.Scene.instReprGrid.repr : Inkproof.Scene.Grid → Nat → Std.Format
+instance Inkproof.Scene.instReprItem : {α : Type} → [Repr α] → Repr (Inkproof.Scene.Item α)
+def Inkproof.Scene.instReprItem.repr : {α : Type} → [Repr α] → Inkproof.Scene.Item α → Nat → Std.Format
+instance Inkproof.Scene.instReprMarkerShape : Repr Inkproof.Scene.MarkerShape
+def Inkproof.Scene.instReprMarkerShape.repr : Inkproof.Scene.MarkerShape → Nat → Std.Format
+instance Inkproof.Scene.instReprPixel : Repr Inkproof.Scene.Pixel
+def Inkproof.Scene.instReprPixel.repr : Inkproof.Scene.Pixel → Nat → Std.Format
+instance Inkproof.Scene.instReprPt : Repr Inkproof.Scene.Pt
+def Inkproof.Scene.instReprPt.repr : Inkproof.Scene.Pt → Nat → Std.Format
+instance Inkproof.Scene.instReprRect : Repr Inkproof.Scene.Rect
+def Inkproof.Scene.instReprRect.repr : Inkproof.Scene.Rect → Nat → Std.Format
+instance Inkproof.Scene.instReprShape : Repr Inkproof.Scene.Shape
+def Inkproof.Scene.instReprShape.repr : Inkproof.Scene.Shape → Nat → Std.Format

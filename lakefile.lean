@@ -12,6 +12,11 @@ package «inkproof-scene» where
     ⟨`warningAsError, true⟩
   ]
 
+require «inkproof-float» from git "https://github.com/paulbutcher/inkproof-float" @ "v0.4.0"
+require «inkproof-core» from git "https://github.com/paulbutcher/inkproof-core" @ "v0.7.0"
+require «inkproof-scale» from git "https://github.com/paulbutcher/inkproof-scale" @ "v0.6.1"
+require «inkproof-axis» from git "https://github.com/paulbutcher/inkproof-axis" @ "v0.4.0"
+
 @[default_target]
 lean_lib InkproofScene where
   roots := #[`Inkproof.Scene]
