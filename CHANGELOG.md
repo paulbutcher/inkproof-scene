@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.1
+
+- Dropped the unused inkproof-axis requirement.
+
 ## v0.4.0
 
 - Compilers from series, scales and aggregates to display lists for line, area, bar, scatter and heatmap charts.
