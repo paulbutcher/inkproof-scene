@@ -69,6 +69,8 @@ inductive Shape where
   /-- Text laid out in `box`. The model fixes only the box, which the text must lie within; glyph
   shapes are the renderer's. -/
   | text (box : Rect) (content : String)
+  /-- The part of `inner` that lies in `box`: a scissor. -/
+  | clipped (box : Rect) (inner : Shape)
   deriving Repr
 
 /-- A drawing command. Commands are painted in ascending `layer`, and within a layer in list order,
@@ -96,6 +98,7 @@ def Shape.region : Shape → Region
   | .marker .square c r => Region.box (c.x - r) (c.y - r) (c.x + r) (c.y + r)
   | .marker .circle c r => Region.disc c r
   | .text b _ => Region.box b.x0 b.y0 b.x1 b.y1
+  | .clipped b s => fun p => Region.box b.x0 b.y0 b.x1 b.y1 p ∧ s.region p
 
 /-- A command covers a pixel when its shape does. -/
 def Command.Covers (c : Command) (px : Pixel) : Prop := c.shape.region.Covers px

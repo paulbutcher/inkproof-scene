@@ -46,7 +46,7 @@ theorem Region.exists_covered {r : Region} {g : Grid} (hw : 0 < g.w) (hh : 0 < g
   match g.exists_pixel hw hh hp with
   | ⟨px, hpx, hc⟩ => ⟨px, hpx, Region.covers_of_mem h hc⟩
 
-private theorem mul_self_nonneg' (r : Rat) : 0 ≤ r * r := by
+theorem mul_self_nonneg' (r : Rat) : 0 ≤ r * r := by
   rcases (Rat.le_total : 0 ≤ r ∨ r ≤ 0) with h | h
   · exact Rat.mul_nonneg h h
   · have h' : 0 ≤ -r := by grind
