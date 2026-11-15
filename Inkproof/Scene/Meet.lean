@@ -2,9 +2,12 @@
 Copyright (c) 2026 Paul Butcher. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
+import Inkproof.Float.RatLemmas
 import Inkproof.Scene.Coverage
 
 namespace Inkproof.Scene
+
+open Inkproof.Float
 
 /-! # Exact tests for a region meeting a window
 
@@ -49,15 +52,6 @@ def Lin.range (c : Lin) : Rat × Rat :=
   if c.d = 0 then (if c.a ≤ c.b then (0, 1) else (1, 0))
   else if 0 < c.d then (0, (c.b - c.a) / c.d) else ((c.b - c.a) / c.d, 1)
 
-theorem mul_le_mul_right_iff {x y d : Rat} (hd : 0 < d) : x * d ≤ y * d ↔ x ≤ y := by
-  constructor
-  · intro h
-    refine Decidable.byContradiction fun hc => ?_
-    have := Rat.mul_lt_mul_of_pos_right (by grind : y < x) hd
-    grind
-  · intro h
-    exact Rat.mul_le_mul_of_nonneg_right h (by grind)
-
 theorem Lin.range_iff (c : Lin) {t : Rat} (h0 : 0 ≤ t) (h1 : t ≤ 1) :
     (c.range.1 ≤ t ∧ t ≤ c.range.2) ↔ c.Holds t := by
   unfold Lin.range Lin.Holds
@@ -68,16 +62,18 @@ theorem Lin.range_iff (c : Lin) {t : Rat} (h0 : 0 ≤ t) (h1 : t ≤ 1) :
     have hq : (c.b - c.a) / c.d * c.d = c.b - c.a := Rat.div_mul_cancel hd
     by_cases hp : 0 < c.d
     · simp only [hp, ite_true]
-      have := mul_le_mul_right_iff (x := t) (y := (c.b - c.a) / c.d) hp
       constructor
-      · intro h; grind
-      · intro h; exact ⟨h0, this.1 (by grind)⟩
+      · intro h
+        have := Rat.mul_le_mul_of_nonneg_right h.2 (by grind : 0 ≤ c.d)
+        grind
+      · intro h; exact ⟨h0, Rat.le_of_mul_le_mul_right (a := t) (b := (c.b - c.a) / c.d) (by grind) hp⟩
     · have hn : 0 < -c.d := by grind
       simp only [hp, ite_false]
-      have := mul_le_mul_right_iff (x := (c.b - c.a) / c.d) (y := t) hn
       constructor
-      · intro h; grind
-      · intro h; exact ⟨this.1 (by grind), h1⟩
+      · intro h
+        have := Rat.mul_le_mul_of_nonneg_right h.1 (by grind : 0 ≤ -c.d)
+        grind
+      · intro h; exact ⟨Rat.le_of_mul_le_mul_right (a := (c.b - c.a) / c.d) (b := t) (by grind) hn, h1⟩
 
 /-- The interval of parameters in `[0, 1]` meeting every constraint. -/
 def Lin.rangeAll : List Lin → Rat × Rat
@@ -205,48 +201,11 @@ theorem spanMeetsB_iff (x0 x1 l0 l1 h0 h1 : Rat) (w : Window) :
     · exact Or.inl (Or.inr ⟨t, h0', h1', by rintro c ((rfl | rfl) | rfl | rfl) <;> grind⟩)
     · exact Or.inr ⟨t, h0', h1', by rintro c ((rfl | rfl) | rfl | rfl) <;> grind⟩
 
-theorem sq_le_sq_pos {a b : Rat} (h0 : 0 ≤ a) (h : a ≤ b) : a * a ≤ b * b :=
-  Rat.le_trans (Rat.mul_le_mul_of_nonneg_left h h0) (Rat.mul_le_mul_of_nonneg_right h (by grind))
-
-theorem sq_le_sq_neg {a b : Rat} (h0 : a ≤ 0) (h : b ≤ a) : a * a ≤ b * b := by
-  have := sq_le_sq_pos (a := -a) (b := -b) (by grind) (by grind)
-  grind
-
-/-- `a * a ≤ ρ * ρ` bounds `a` by `ρ` in magnitude. -/
-theorem abs_le_of_sq_le {a ρ : Rat} (hρ : 0 ≤ ρ) (h : a * a ≤ ρ * ρ) : -ρ ≤ a ∧ a ≤ ρ := by
-  constructor
-  · refine Decidable.byContradiction fun hc => ?_
-    have := Rat.mul_pos (by grind : 0 < -ρ - a) (by grind : 0 < -a + ρ)
-    grind
-  · refine Decidable.byContradiction fun hc => ?_
-    have := Rat.mul_pos (by grind : 0 < a - ρ) (by grind : 0 < a + ρ)
-    grind
-
-/-- The point of `[lo, hi]` nearest `v`. -/
-def clamp (v lo hi : Rat) : Rat := max lo (min v hi)
-
-theorem clamp_mem {v lo hi : Rat} (h : lo ≤ hi) : lo ≤ clamp v lo hi ∧ clamp v lo hi ≤ hi := by
-  unfold clamp; grind
-
-/-- The clamped point is no farther from `v` than any point of the interval. -/
-theorem clamp_sq_le {v lo hi p : Rat} (h : lo ≤ p) (h' : p ≤ hi) :
-    (clamp v lo hi - v) * (clamp v lo hi - v) ≤ (p - v) * (p - v) := by
-  have hl : lo ≤ hi := Rat.le_trans h h'
-  unfold clamp
-  by_cases h1 : v ≤ lo
-  · have : max lo (min v hi) = lo := by grind
-    rw [this]; exact sq_le_sq_pos (by grind) (by grind)
-  by_cases h2 : hi ≤ v
-  · have : max lo (min v hi) = hi := by grind
-    rw [this]; exact sq_le_sq_neg (by grind) (by grind)
-  · have : max lo (min v hi) = v := by grind
-    rw [this]; simp only [Rat.sub_self, Rat.zero_mul]; exact mul_self_nonneg' _
-
 /-- The disc of radius `r` about `c` meets the window. -/
 def discMeetsB (c : Pt) (r : Rat) (w : Window) : Bool :=
   decide (w.x0 ≤ w.x1 ∧ w.y0 ≤ w.y1) &&
-    decide ((clamp c.x w.x0 w.x1 - c.x) * (clamp c.x w.x0 w.x1 - c.x) +
-      (clamp c.y w.y0 w.y1 - c.y) * (clamp c.y w.y0 w.y1 - c.y) ≤ r * r)
+    decide ((clamp w.x0 w.x1 c.x - c.x) * (clamp w.x0 w.x1 c.x - c.x) +
+      (clamp w.y0 w.y1 c.y - c.y) * (clamp w.y0 w.y1 c.y - c.y) ≤ r * r)
 
 theorem discMeetsB_iff (c : Pt) (r : Rat) (w : Window) :
     discMeetsB c r w = true ↔ (Region.disc c r).Meets w := by
@@ -254,19 +213,19 @@ theorem discMeetsB_iff (c : Pt) (r : Rat) (w : Window) :
   simp only [Bool.and_eq_true, decide_eq_true_eq]
   constructor
   · rintro ⟨⟨hx, hy⟩, h⟩
-    have a := clamp_mem (v := c.x) hx
-    have b := clamp_mem (v := c.y) hy
-    exact ⟨⟨clamp c.x w.x0 w.x1, clamp c.y w.y0 w.y1⟩, by grind, by simp only [Window.Has]; grind⟩
+    have a := rat_clamp_mem (x := c.x) hx
+    have b := rat_clamp_mem (x := c.y) hy
+    exact ⟨⟨clamp w.x0 w.x1 c.x, clamp w.y0 w.y1 c.y⟩, by grind, by simp only [Window.Has]; grind⟩
   · rintro ⟨p, hp, hw⟩
     obtain ⟨a, b, c', d⟩ := hw
-    have h1 := clamp_sq_le (v := c.x) a b
-    have h2 := clamp_sq_le (v := c.y) c' d
+    have h1 := rat_clamp_sq_le (x := c.x) a b
+    have h2 := rat_clamp_sq_le (x := c.y) c' d
     exact ⟨⟨Rat.le_trans a b, Rat.le_trans c' d⟩, by grind⟩
 
 theorem quad_min {D k E t0 t : Rat} (hD : 0 < D) (hq : t0 * D = -k) (h0 : 0 ≤ t) (h1 : t ≤ 1) :
-    D * clamp t0 0 1 * clamp t0 0 1 + 2 * clamp t0 0 1 * k + E ≤ D * t * t + 2 * t * k + E := by
+    D * clamp 0 1 t0 * clamp 0 1 t0 + 2 * clamp 0 1 t0 * k + E ≤ D * t * t + 2 * t * k + E := by
   obtain rfl : k = -(t0 * D) := by grind
-  unfold clamp
+  rw [rat_clamp_eq_max_min (lo := 0) (hi := 1) (x := t0) (by grind)]
   by_cases a : t0 ≤ 0
   · have e : max 0 (min t0 1) = 0 := by grind
     rw [e]
@@ -288,7 +247,7 @@ def segDiscB (a b c : Pt) (r : Rat) : Bool :=
   let dy := b.y - a.y
   let ex := a.x - c.x
   let ey := a.y - c.y
-  let t := clamp (-(dx * ex + dy * ey) / (dx * dx + dy * dy)) 0 1
+  let t := clamp 0 1 (-(dx * ex + dy * ey) / (dx * dx + dy * dy))
   decide ((ex + t * dx) * (ex + t * dx) + (ey + t * dy) * (ey + t * dy) ≤ r * r)
 
 theorem segDiscB_iff (a b c : Pt) (r : Rat) :
@@ -301,9 +260,9 @@ theorem segDiscB_iff (a b c : Pt) (r : Rat) :
   generalize hey : a.y - c.y = ey
   constructor
   · intro h
-    have hb := clamp_mem (v := -(dx * ex + dy * ey) / (dx * dx + dy * dy)) (lo := 0) (hi := 1)
+    have hb := rat_clamp_mem (x := -(dx * ex + dy * ey) / (dx * dx + dy * dy)) (lo := 0) (hi := 1)
       (by grind)
-    generalize clamp (-(dx * ex + dy * ey) / (dx * dx + dy * dy)) 0 1 = t at h hb
+    generalize clamp 0 1 (-(dx * ex + dy * ey) / (dx * dx + dy * dy)) = t at h hb
     have e1 : a.x + t * dx - c.x = ex + t * dx := by rw [← hex]; grind
     have e2 : a.y + t * dy - c.y = ey + t * dy := by rw [← hey]; grind
     exact ⟨⟨a.x + t * dx, a.y + t * dy⟩, ⟨t, hb.1, hb.2, rfl, rfl⟩,
@@ -314,9 +273,9 @@ theorem segDiscB_iff (a b c : Pt) (r : Rat) :
     have hid : (ex + t * dx) * (ex + t * dx) + (ey + t * dy) * (ey + t * dy) ≤ r * r := by
       rw [← e1, ← e2]; exact h
     by_cases hD : dx * dx + dy * dy = 0
-    · have hx0 := abs_le_of_sq_le (a := dx) (ρ := 0) (Rat.le_refl) (by
+    · have hx0 := rat_abs_le_of_sq_le (a := dx) (ρ := 0) (Rat.le_refl) (by
         have := mul_self_nonneg' dy; have := mul_self_nonneg' dx; grind)
-      have hy0 := abs_le_of_sq_le (a := dy) (ρ := 0) (Rat.le_refl) (by
+      have hy0 := rat_abs_le_of_sq_le (a := dy) (ρ := 0) (Rat.le_refl) (by
         have := mul_self_nonneg' dy; have := mul_self_nonneg' dx; grind)
       have e1 : dx = 0 := by grind
       have e2 : dy = 0 := by grind
@@ -335,15 +294,15 @@ def Window.Near (w : Window) (r : Rat) (q : Pt) : Prop := ∃ p, w.Has p ∧ Reg
 
 /-- A coordinate within `ρ` of `[lo, hi]` is within `ρ` of its clamp. -/
 theorem clamp_sq_le_of_near {v lo hi ρ : Rat} (hl : lo ≤ hi) (hρ : 0 ≤ ρ) (a : lo - ρ ≤ v)
-    (b : v ≤ hi + ρ) : (clamp v lo hi - v) * (clamp v lo hi - v) ≤ ρ * ρ := by
-  unfold clamp
+    (b : v ≤ hi + ρ) : (clamp lo hi v - v) * (clamp lo hi v - v) ≤ ρ * ρ := by
+  rw [rat_clamp_eq_max_min hl]
   by_cases h1 : v ≤ lo
   · have : max lo (min v hi) = lo := by grind
-    rw [this]; exact sq_le_sq_pos (by grind) (by grind)
+    rw [this]; exact rat_sq_le_sq_of_nonneg (by grind) (by grind)
   by_cases h2 : hi ≤ v
   · have : max lo (min v hi) = hi := by grind
     rw [this]
-    have := sq_le_sq_neg (a := hi - v) (b := -ρ) (by grind) (by grind)
+    have := rat_sq_le_sq_of_nonpos (a := hi - v) (b := -ρ) (by grind) (by grind)
     grind
   · have : max lo (min v hi) = v := by grind
     rw [this]; simp only [Rat.sub_self, Rat.zero_mul]; exact Rat.mul_nonneg hρ hρ
@@ -366,32 +325,32 @@ theorem Window.near_iff (w : Window) (r : Rat) (hx : w.x0 ≤ w.x1) (hy : w.y0 �
   · rintro ⟨p, ⟨a, b, c, d⟩, h⟩
     have h1 := mul_self_nonneg' (p.x - q.x)
     have h2 := mul_self_nonneg' (p.y - q.y)
-    have bx := abs_le_of_sq_le hρ (a := p.x - q.x) (by grind)
-    have by' := abs_le_of_sq_le hρ (a := p.y - q.y) (by grind)
+    have bx := rat_abs_le_of_sq_le hρ (a := p.x - q.x) (by grind)
+    have by' := rat_abs_le_of_sq_le hρ (a := p.y - q.y) (by grind)
     by_cases qx0 : w.x0 ≤ q.x ∧ q.x ≤ w.x1
     · exact Or.inr (Or.inl ⟨qx0.1, qx0.2, by grind, by grind⟩)
     by_cases qy0 : w.y0 ≤ q.y ∧ q.y ≤ w.y1
     · exact Or.inl ⟨by grind, by grind, qy0.1, qy0.2⟩
     by_cases u : q.x < w.x0
-    · have e1 := sq_le_sq_pos (a := w.x0 - q.x) (b := p.x - q.x) (by grind) (by grind)
+    · have e1 := rat_sq_le_sq_of_nonneg (a := w.x0 - q.x) (b := p.x - q.x) (by grind) (by grind)
       by_cases v : q.y < w.y0
-      · have e2 := sq_le_sq_pos (a := w.y0 - q.y) (b := p.y - q.y) (by grind) (by grind)
+      · have e2 := rat_sq_le_sq_of_nonneg (a := w.y0 - q.y) (b := p.y - q.y) (by grind) (by grind)
         exact Or.inr (Or.inr (Or.inl (by grind)))
-      · have e2 := sq_le_sq_neg (a := w.y1 - q.y) (b := p.y - q.y) (by grind) (by grind)
+      · have e2 := rat_sq_le_sq_of_nonpos (a := w.y1 - q.y) (b := p.y - q.y) (by grind) (by grind)
         exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inl (by grind)))))
-    · have e1 := sq_le_sq_neg (a := w.x1 - q.x) (b := p.x - q.x) (by grind) (by grind)
+    · have e1 := rat_sq_le_sq_of_nonpos (a := w.x1 - q.x) (b := p.x - q.x) (by grind) (by grind)
       by_cases v : q.y < w.y0
-      · have e2 := sq_le_sq_pos (a := w.y0 - q.y) (b := p.y - q.y) (by grind) (by grind)
+      · have e2 := rat_sq_le_sq_of_nonneg (a := w.y0 - q.y) (b := p.y - q.y) (by grind) (by grind)
         exact Or.inr (Or.inr (Or.inr (Or.inl (by grind))))
-      · have e2 := sq_le_sq_neg (a := w.y1 - q.y) (b := p.y - q.y) (by grind) (by grind)
+      · have e2 := rat_sq_le_sq_of_nonpos (a := w.y1 - q.y) (b := p.y - q.y) (by grind) (by grind)
         exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (by grind)))))
   · rintro (⟨a, b, c, d⟩ | ⟨a, b, c, d⟩ | h | h | h | h)
     · have := clamp_sq_le_of_near (v := q.x) hx hρ a b
-      have := clamp_mem (v := q.x) hx
-      exact ⟨⟨clamp q.x w.x0 w.x1, q.y⟩, by simp only []; grind, by grind⟩
+      have := rat_clamp_mem (x := q.x) hx
+      exact ⟨⟨clamp w.x0 w.x1 q.x, q.y⟩, by simp only []; grind, by grind⟩
     · have := clamp_sq_le_of_near (v := q.y) hy hρ c d
-      have := clamp_mem (v := q.y) hy
-      exact ⟨⟨q.x, clamp q.y w.y0 w.y1⟩, by simp only []; grind, by grind⟩
+      have := rat_clamp_mem (x := q.y) hy
+      exact ⟨⟨q.x, clamp w.y0 w.y1 q.y⟩, by simp only []; grind, by grind⟩
     · refine ⟨⟨w.x0, w.y0⟩, ⟨Rat.le_refl, hx, Rat.le_refl, hy⟩, ?_⟩; simp only []; grind
     · refine ⟨⟨w.x1, w.y0⟩, ⟨hx, Rat.le_refl, Rat.le_refl, hy⟩, ?_⟩; simp only []; grind
     · refine ⟨⟨w.x0, w.y1⟩, ⟨Rat.le_refl, hx, hy, Rat.le_refl⟩, ?_⟩; simp only []; grind

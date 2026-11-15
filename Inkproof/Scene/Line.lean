@@ -125,14 +125,8 @@ def Pt.frame (a f : Pt) (h : Rat) : Pt × Pt × Pt :=
    ⟨(1 + 2 * k) * f.x, (1 + 2 * k) * f.y⟩,
    ⟨-(2 * k) * f.y, 2 * k * f.x⟩)
 
-private theorem le_of_mul_right {x y z : Rat} (hz : 0 < z) (h : x * z ≤ y * z) : x ≤ y := by
-  by_cases hc : x ≤ y
-  · exact hc
-  · have := Rat.mul_pos (a := x - y) (b := z) (by grind) hz
-    grind
-
 private theorem eq_of_mul_right {x y z : Rat} (hz : 0 < z) (h : x * z = y * z) : x = y :=
-  Rat.le_antisymm (le_of_mul_right hz (by grind)) (le_of_mul_right hz (by grind))
+  Rat.le_antisymm (Rat.le_of_mul_le_mul_right (by grind) hz) (Rat.le_of_mul_le_mul_right (by grind) hz)
 
 /-- A disc about a point of the segment `a + t f` lies in the frame. -/
 theorem frame_param (a f : Pt) (h t : Rat) (hh : 0 < h) (hD : 0 < f.x * f.x + f.y * f.y)
@@ -182,26 +176,26 @@ theorem frame_param (a f : Pt) (h t : Rat) (hh : 0 < h) (hD : 0 < f.x * f.x + f.
   have eA : A * (D * L) = (ex * f.x + ey * f.y) * L := by rw [← hA]; grind
   have eB : B * (D * L) = (ey * f.x - ex * f.y) * L := by rw [← hB]; grind
   have hA1 : -k ≤ A := by
-    apply le_of_mul_right hDL
+    refine Rat.le_of_mul_le_mul_right ?_ hDL
     rw [eA]; grind
   have hA2 : A ≤ k := by
-    apply le_of_mul_right hDL
+    refine Rat.le_of_mul_le_mul_right ?_ hDL
     rw [eA]; grind
   have hB1 : -k ≤ B := by
-    apply le_of_mul_right hDL
+    refine Rat.le_of_mul_le_mul_right ?_ hDL
     rw [eB]; grind
   have hB2 : B ≤ k := by
-    apply le_of_mul_right hDL
+    refine Rat.le_of_mul_le_mul_right ?_ hDL
     rw [eB]; grind
   obtain ⟨u, hu⟩ : ∃ u, u * (1 + 2 * k) = t + A + k := ⟨_, Rat.div_mul_cancel (by grind)⟩
   obtain ⟨v, hv⟩ : ∃ v, v * (2 * k) = B + k := ⟨_, Rat.div_mul_cancel (by grind)⟩
   have hk1 : 0 < 1 + 2 * k := by grind
   have hk2 : 0 < 2 * k := by grind
   refine ⟨u, v, ?_, ?_, ?_, ?_, ?_, ?_⟩
-  · exact le_of_mul_right hk1 (by grind)
-  · exact le_of_mul_right hk1 (by grind)
-  · exact le_of_mul_right hk2 (by grind)
-  · exact le_of_mul_right hk2 (by grind)
+  · exact Rat.le_of_mul_le_mul_right (by grind) hk1
+  · exact Rat.le_of_mul_le_mul_right (by grind) hk1
+  · exact Rat.le_of_mul_le_mul_right (by grind) hk2
+  · exact Rat.le_of_mul_le_mul_right (by grind) hk2
   · apply eq_of_mul_right hD
     grind
   · apply eq_of_mul_right hD

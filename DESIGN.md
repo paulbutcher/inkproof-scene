@@ -34,3 +34,7 @@ The compilers work on lists and are meant for a tile or a viewport's worth of po
 
 `render` gives each pixel the colour of the command on top there (`winner`: the covering command of greatest layer, the last in the list among those) or the background when none covers it; `pixelColor_of_covers` and `pixelColor_of_not_covers` state this. Painting replaces the colour outright: blending is not part of the model.
 
+
+## Prior art
+
+The square and clamp lemmas, and `clamp` itself, come from `inkproof-float` (`rat_sq_le_sq_of_nonneg`, `rat_abs_le_of_sq_le`, `clamp`, `rat_clamp_mem` and the rest); cancelling a positive factor from an inequality is core's `Rat.le_of_mul_le_mul_right`. Neither core, Std nor the sibling libraries state `0 ≤ r * r` for `Rat`, so `mul_self_nonneg'` stays here.

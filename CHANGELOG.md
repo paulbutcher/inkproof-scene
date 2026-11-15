@@ -1,7 +1,8 @@
 # Changelog
 
-## v0.4.1
+## v0.5.0
 
+- Took the square and clamp lemmas and `clamp` from inkproof-float; `clamp` now takes the interval first.
 - Dropped the unused inkproof-axis requirement.
 
 ## v0.4.0
