@@ -20,6 +20,14 @@ A display list is an array of commands, each with a layer, a colour and a shape:
 
 Anti-aliased geometry, where a renderer chooses it, fades the outer edge of these triangles. It differs from the aliased model by shading partial coverage, so it can lower the opacity of a pixel the model covers but never leaves a covered pixel unreached by geometry; guarantees stated under the model (TCB-2) hold for the geometry, not for the shaded values.
 
+## Chart compilation
+
+A `Projection` takes data coordinates to grid coordinates (`Projection.linear` from two linear scales). Series are `Segmented`, and a missing value is a gap like a break, so `Projection.runs` yields runs of consecutive present points of one segment; every strip and area is the runs separated by explicit gaps (`compileLine_no_bridge`, `compileArea_no_bridge`).
+
+With `reduce`, each run is cut into maximal stretches of adjacent points in one x class (`xKey`: an integer, or the open interval between two) and each stretch becomes its first point, its lowest and highest values at the first point's x, and its last point (`reduceRun`, built on Core's first/last/minimum/maximum aggregates). `compileLine_covers_iff` proves a bare line (half-width zero) covers the same pixels as the full data. It needs no assumption on the data: a stretch is replaced only where every column touched is the same for all its points, and the segments between stretches are kept. Sorted data merely makes each class one stretch. A thick line is not covered: moving the extremes to the first point's x can shift it by under a pixel.
+
+The compilers work on lists and are meant for a tile or a viewport's worth of points.
+
 ## Reference rasterizer
 
 `Shape.meetsB` decides, in exact rational arithmetic, whether a shape's region meets a closed window, and `Shape.meetsB_iff` proves it agrees with `Shape.region`, so the rasterizer's coverage is the model's for every command kind. Each primitive reduces to a few exact tests (`Meet.lean`): a segment against a window is a feasibility problem in the segment parameter; a thickened segment against a window is the window widened sideways, widened vertically, and four corner discs; a swept quadrilateral is four such problems, one per ordering of its ends; a clipped shape is tested against the window intersected with the scissor. The test is per pixel and per command with no bounding-box culling, which keeps the proof direct and makes it a reference rather than a fast renderer.

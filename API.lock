@@ -1,4 +1,15 @@
+structure Inkproof.Scene.BarStyle : Type
+constructor Inkproof.Scene.BarStyle.mk : Inkproof.Scene.Paint → Rat → Inkproof.Scene.BarStyle
+field Inkproof.Scene.BarStyle.paint : Inkproof.Scene.BarStyle → Inkproof.Scene.Paint
+field Inkproof.Scene.BarStyle.width : Inkproof.Scene.BarStyle → Rat
 def Inkproof.Scene.Between : Rat → Rat → Rat → Prop
+structure Inkproof.Scene.Cell : Type u → Type v → Type → Type (max u v)
+constructor Inkproof.Scene.Cell.mk : {α : Type u} → {β : Type v} → {γ : Type} → α → α → β → β → Option γ → Inkproof.Scene.Cell α β γ
+field Inkproof.Scene.Cell.value : {α : Type u} → {β : Type v} → {γ : Type} → Inkproof.Scene.Cell α β γ → Option γ
+field Inkproof.Scene.Cell.x0 : {α : Type u} → {β : Type v} → {γ : Type} → Inkproof.Scene.Cell α β γ → α
+field Inkproof.Scene.Cell.x1 : {α : Type u} → {β : Type v} → {γ : Type} → Inkproof.Scene.Cell α β γ → α
+field Inkproof.Scene.Cell.y0 : {α : Type u} → {β : Type v} → {γ : Type} → Inkproof.Scene.Cell α β γ → β
+field Inkproof.Scene.Cell.y1 : {α : Type u} → {β : Type v} → {γ : Type} → Inkproof.Scene.Cell α β γ → β
 structure Inkproof.Scene.Color : Type
 field Inkproof.Scene.Color.a : Inkproof.Scene.Color → UInt8
 field Inkproof.Scene.Color.b : Inkproof.Scene.Color → UInt8
@@ -48,7 +59,9 @@ def Inkproof.Scene.Item.anyB : {α : Type} → (α → Bool) → (α → α → 
 theorem Inkproof.Scene.Item.anyB_iff : ∀ {α : Type} {fs : α → Bool} {fj : α → α → Bool} {single : α → Inkproof.Scene.Region} {join : α → α → Inkproof.Scene.Region} {M : Inkproof.Scene.Pt → Prop}, (∀ (a : α), fs a = Bool.true ↔ ∃ q, single a q ∧ M q) → (∀ (a b : α), fj a b = Bool.true ↔ ∃ q, join a b q ∧ M q) → ∀ (items : List (Inkproof.Scene.Item α)), Inkproof.Scene.Item.anyB fs fj items = Bool.true ↔ ∃ q, Inkproof.Scene.Item.chain single join items q ∧ M q
 def Inkproof.Scene.Item.chain : {α : Type} → (α → Inkproof.Scene.Region) → (α → α → Inkproof.Scene.Region) → List (Inkproof.Scene.Item α) → Inkproof.Scene.Region
 theorem Inkproof.Scene.Item.chain_append_gap : ∀ {α : Type} {single : α → Inkproof.Scene.Region} {join : α → α → Inkproof.Scene.Region} (xs ys : List (Inkproof.Scene.Item α)) (p : Inkproof.Scene.Pt), Inkproof.Scene.Item.chain single join (xs ++ Inkproof.Scene.Item.gap :: ys) p ↔ Inkproof.Scene.Item.chain single join xs p ∨ Inkproof.Scene.Item.chain single join ys p
+theorem Inkproof.Scene.Item.chain_ofRuns : ∀ {single : Inkproof.Scene.Pt → Inkproof.Scene.Region} {join : Inkproof.Scene.Pt → Inkproof.Scene.Pt → Inkproof.Scene.Region} (rs : List (List Inkproof.Scene.Pt)) (p : Inkproof.Scene.Pt), Inkproof.Scene.Item.chain single join (Inkproof.Scene.Item.ofRuns rs) p ↔ ∃ r, r ∈ rs ∧ Inkproof.Scene.Item.chain single join (List.map Inkproof.Scene.Item.val r) p
 constructor Inkproof.Scene.Item.gap : {α : Type} → Inkproof.Scene.Item α
+def Inkproof.Scene.Item.ofRuns : List (List Inkproof.Scene.Pt) → List (Inkproof.Scene.Item Inkproof.Scene.Pt)
 theorem Inkproof.Scene.Item.single_sub_chain : ∀ {α : Type} {single : α → Inkproof.Scene.Region} {join : α → α → Inkproof.Scene.Region} {items : List (Inkproof.Scene.Item α)} {a : α}, Inkproof.Scene.Item.val a ∈ items → (single a).Sub (Inkproof.Scene.Item.chain single join items)
 constructor Inkproof.Scene.Item.val : {α : Type} → α → Inkproof.Scene.Item α
 structure Inkproof.Scene.Lin : Type
@@ -64,17 +77,33 @@ def Inkproof.Scene.Lin.rangeAll : List Inkproof.Scene.Lin → Rat × Rat
 theorem Inkproof.Scene.Lin.rangeAll_bounds : ∀ (cs : List Inkproof.Scene.Lin), 0 ≤ (Inkproof.Scene.Lin.rangeAll cs).fst ∧ (Inkproof.Scene.Lin.rangeAll cs).snd ≤ 1
 theorem Inkproof.Scene.Lin.rangeAll_iff : ∀ (cs : List Inkproof.Scene.Lin) {t : Rat}, 0 ≤ t → t ≤ 1 → ((Inkproof.Scene.Lin.rangeAll cs).fst ≤ t ∧ t ≤ (Inkproof.Scene.Lin.rangeAll cs).snd ↔ ∀ (c : Inkproof.Scene.Lin), c ∈ cs → c.Holds t)
 theorem Inkproof.Scene.Lin.range_iff : ∀ (c : Inkproof.Scene.Lin) {t : Rat}, 0 ≤ t → t ≤ 1 → (c.range.fst ≤ t ∧ t ≤ c.range.snd ↔ c.Holds t)
+structure Inkproof.Scene.LineStyle : Type
+field Inkproof.Scene.LineStyle.halfWidth : Inkproof.Scene.LineStyle → Rat
+constructor Inkproof.Scene.LineStyle.mk : Inkproof.Scene.Paint → Rat → Bool → Inkproof.Scene.LineStyle
+field Inkproof.Scene.LineStyle.paint : Inkproof.Scene.LineStyle → Inkproof.Scene.Paint
+field Inkproof.Scene.LineStyle.reduce : Inkproof.Scene.LineStyle → Bool
 inductive Inkproof.Scene.MarkerShape : Type
 constructor Inkproof.Scene.MarkerShape.circle : Inkproof.Scene.MarkerShape
 def Inkproof.Scene.MarkerShape.ofNat : Nat → Inkproof.Scene.MarkerShape
 theorem Inkproof.Scene.MarkerShape.ofNat_ctorIdx : ∀ (x : Inkproof.Scene.MarkerShape), Inkproof.Scene.MarkerShape.ofNat x.ctorIdx = x
 constructor Inkproof.Scene.MarkerShape.square : Inkproof.Scene.MarkerShape
+structure Inkproof.Scene.Paint : Type
+field Inkproof.Scene.Paint.color : Inkproof.Scene.Paint → Inkproof.Scene.Color
+field Inkproof.Scene.Paint.layer : Inkproof.Scene.Paint → Nat
+constructor Inkproof.Scene.Paint.mk : Nat → Inkproof.Scene.Color → Inkproof.Scene.Paint
 structure Inkproof.Scene.Pixel : Type
 def Inkproof.Scene.Pixel.Contains : Inkproof.Scene.Pixel → Inkproof.Scene.Pt → Prop
 field Inkproof.Scene.Pixel.col : Inkproof.Scene.Pixel → Nat
 constructor Inkproof.Scene.Pixel.mk : Nat → Nat → Inkproof.Scene.Pixel
 field Inkproof.Scene.Pixel.row : Inkproof.Scene.Pixel → Nat
 def Inkproof.Scene.Pixel.window : Inkproof.Scene.Pixel → Inkproof.Scene.Window
+structure Inkproof.Scene.Projection : Type u → Type v → Type (max u v)
+def Inkproof.Scene.Projection.linear : Inkproof.Scale.Linear Rat → Inkproof.Scale.Linear Rat → Inkproof.Scene.Projection Rat Rat
+constructor Inkproof.Scene.Projection.mk : {α : Type u} → {β : Type v} → (α → Rat) → (β → Rat) → Inkproof.Scene.Projection α β
+def Inkproof.Scene.Projection.points : {α : Type u} → {β : Type v} → [inst : LE α] → Inkproof.Scene.Projection α β → Inkproof.Core.Series α β → List (Option Inkproof.Scene.Pt)
+def Inkproof.Scene.Projection.runs : {α : Type u} → {β : Type v} → [inst : LE α] → Inkproof.Scene.Projection α β → Inkproof.Core.Segmented α β → List (List Inkproof.Scene.Pt)
+field Inkproof.Scene.Projection.x : {α : Type u} → {β : Type v} → Inkproof.Scene.Projection α β → α → Rat
+field Inkproof.Scene.Projection.y : {α : Type u} → {β : Type v} → Inkproof.Scene.Projection α β → β → Rat
 structure Inkproof.Scene.Pt : Type
 def Inkproof.Scene.Pt.dir : Inkproof.Scene.Pt → Inkproof.Scene.Pt → Inkproof.Scene.Pt
 theorem Inkproof.Scene.Pt.dir_of_eq : ∀ (a : Inkproof.Scene.Pt), a.dir a = { x := 1, y := 0 }
@@ -100,8 +129,11 @@ theorem Inkproof.Scene.Region.Covers.mono : ∀ {a b : Inkproof.Scene.Region}, a
 def Inkproof.Scene.Region.Meets : Inkproof.Scene.Region → Inkproof.Scene.Window → Prop
 def Inkproof.Scene.Region.Sub : Inkproof.Scene.Region → Inkproof.Scene.Region → Prop
 def Inkproof.Scene.Region.box : Rat → Rat → Rat → Rat → Inkproof.Scene.Region
+theorem Inkproof.Scene.Region.covers_congr : ∀ {r s : Inkproof.Scene.Region}, (∀ (p : Inkproof.Scene.Pt), r p ↔ s p) → ∀ (px : Inkproof.Scene.Pixel), r.Covers px ↔ s.Covers px
+theorem Inkproof.Scene.Region.covers_exists : ∀ {α : Type} {rs : List α} {f : α → Inkproof.Scene.Region} {px : Inkproof.Scene.Pixel}, Inkproof.Scene.Region.Covers (fun p => ∃ r, r ∈ rs ∧ f r p) px ↔ ∃ r, r ∈ rs ∧ (f r).Covers px
 theorem Inkproof.Scene.Region.covers_iff_meets : ∀ (r : Inkproof.Scene.Region) (px : Inkproof.Scene.Pixel), r.Covers px ↔ r.Meets px.window
 theorem Inkproof.Scene.Region.covers_of_mem : ∀ {r : Inkproof.Scene.Region} {px : Inkproof.Scene.Pixel} {p : Inkproof.Scene.Pt}, r p → px.Contains p → r.Covers px
+theorem Inkproof.Scene.Region.covers_or : ∀ {r s : Inkproof.Scene.Region} {px : Inkproof.Scene.Pixel}, Inkproof.Scene.Region.Covers (fun p => r p ∨ s p) px ↔ r.Covers px ∨ s.Covers px
 def Inkproof.Scene.Region.disc : Inkproof.Scene.Pt → Rat → Inkproof.Scene.Region
 theorem Inkproof.Scene.Region.exists_covered : ∀ {r : Inkproof.Scene.Region} {g : Inkproof.Scene.Grid}, 0 < g.w → 0 < g.h → ∀ {p : Inkproof.Scene.Pt}, r p → g.Holds p → ∃ px, g.Has px ∧ r.Covers px
 def Inkproof.Scene.Region.point : Inkproof.Scene.Pt → Inkproof.Scene.Region
@@ -109,6 +141,12 @@ def Inkproof.Scene.Region.seg : Inkproof.Scene.Pt → Inkproof.Scene.Pt → Inkp
 def Inkproof.Scene.Region.span : Rat → Rat → Rat → Rat → Rat → Rat → Inkproof.Scene.Region
 theorem Inkproof.Scene.Region.sub_thicken : ∀ (r : Rat) (a : Inkproof.Scene.Region), a.Sub (Inkproof.Scene.Region.thicken r a)
 def Inkproof.Scene.Region.thicken : Rat → Inkproof.Scene.Region → Inkproof.Scene.Region
+theorem Inkproof.Scene.Region.thicken_zero : ∀ (a : Inkproof.Scene.Region) (p : Inkproof.Scene.Pt), Inkproof.Scene.Region.thicken 0 a p ↔ a p
+structure Inkproof.Scene.ScatterStyle : Type
+constructor Inkproof.Scene.ScatterStyle.mk : Inkproof.Scene.Paint → Inkproof.Scene.MarkerShape → Rat → Inkproof.Scene.ScatterStyle
+field Inkproof.Scene.ScatterStyle.paint : Inkproof.Scene.ScatterStyle → Inkproof.Scene.Paint
+field Inkproof.Scene.ScatterStyle.radius : Inkproof.Scene.ScatterStyle → Rat
+field Inkproof.Scene.ScatterStyle.shape : Inkproof.Scene.ScatterStyle → Inkproof.Scene.MarkerShape
 inductive Inkproof.Scene.Shape : Type
 constructor Inkproof.Scene.Shape.area : Rat → List (Inkproof.Scene.Item Inkproof.Scene.Pt) → Inkproof.Scene.Shape
 theorem Inkproof.Scene.Shape.brecOn.eq : ∀ {motive : Inkproof.Scene.Shape → Sort u} (t : Inkproof.Scene.Shape) (F_1 : (t : Inkproof.Scene.Shape) → Inkproof.Scene.Shape.below t → motive t), Inkproof.Scene.Shape.brecOn t F_1 = F_1 t (Inkproof.Scene.Shape.brecOn.go t F_1).2
@@ -143,19 +181,32 @@ field Inkproof.Scene.Window.x1 : Inkproof.Scene.Window → Rat
 field Inkproof.Scene.Window.y0 : Inkproof.Scene.Window → Rat
 field Inkproof.Scene.Window.y1 : Inkproof.Scene.Window → Rat
 theorem Inkproof.Scene.abs_le_of_sq_le : ∀ {a ρ : Rat}, 0 ≤ ρ → a * a ≤ ρ * ρ → -ρ ≤ a ∧ a ≤ ρ
+theorem Inkproof.Scene.between_comm : ∀ {a b v : Rat}, Inkproof.Scene.Between a b v → Inkproof.Scene.Between b a v
 theorem Inkproof.Scene.between_iff : ∀ (a b v : Rat), Inkproof.Scene.Between a b v ↔ Min.min a b ≤ v ∧ v ≤ Max.max a b
+theorem Inkproof.Scene.between_split : ∀ {a b v y : Rat}, Inkproof.Scene.Between a v y → Inkproof.Scene.Between a b y ∨ Inkproof.Scene.Between b v y
 def Inkproof.Scene.boxMeetsB : Rat → Rat → Rat → Rat → Inkproof.Scene.Window → Bool
 theorem Inkproof.Scene.boxMeetsB_iff : ∀ (x0 y0 x1 y1 : Rat) (w : Inkproof.Scene.Window), Inkproof.Scene.boxMeetsB x0 y0 x1 y1 w = Bool.true ↔ (Inkproof.Scene.Region.box x0 y0 x1 y1).Meets w
 def Inkproof.Scene.clamp : Rat → Rat → Rat → Rat
 theorem Inkproof.Scene.clamp_mem : ∀ {v lo hi : Rat}, lo ≤ hi → lo ≤ Inkproof.Scene.clamp v lo hi ∧ Inkproof.Scene.clamp v lo hi ≤ hi
 theorem Inkproof.Scene.clamp_sq_le : ∀ {v lo hi p : Rat}, lo ≤ p → p ≤ hi → (Inkproof.Scene.clamp v lo hi - v) * (Inkproof.Scene.clamp v lo hi - v) ≤ (p - v) * (p - v)
 theorem Inkproof.Scene.clamp_sq_le_of_near : ∀ {v lo hi ρ : Rat}, lo ≤ hi → 0 ≤ ρ → lo - ρ ≤ v → v ≤ hi + ρ → (Inkproof.Scene.clamp v lo hi - v) * (Inkproof.Scene.clamp v lo hi - v) ≤ ρ * ρ
+def Inkproof.Scene.compileArea : {α : Type u} → {β : Type v} → [inst : LE α] → Inkproof.Scene.Paint → β → Inkproof.Scene.Projection α β → Inkproof.Core.Segmented α β → Inkproof.Scene.DisplayList
+theorem Inkproof.Scene.compileArea_no_bridge : ∀ {α : Type u} {β : Type v} [inst : LE α] (paint : Inkproof.Scene.Paint) (baseline : β) (proj : Inkproof.Scene.Projection α β) (g : Inkproof.Core.Segmented α β) {c : Inkproof.Scene.Command}, c ∈ Inkproof.Scene.compileArea paint baseline proj g → ∀ {p : Inkproof.Scene.Pt}, c.shape.region p → ∃ r, r ∈ proj.runs g ∧ (Inkproof.Scene.Shape.area (proj.y baseline) (List.map Inkproof.Scene.Item.val r)).region p
+def Inkproof.Scene.compileBars : {α : Type u} → {β : Type v} → [inst : LE α] → Inkproof.Scene.BarStyle → β → Inkproof.Scene.Projection α β → Inkproof.Core.Series α β → Inkproof.Scene.DisplayList
+def Inkproof.Scene.compileHeatmap : {α : Type u} → {β : Type v} → {γ : Type} → Nat → (γ → Inkproof.Scene.Color) → Inkproof.Scene.Projection α β → Array (Inkproof.Scene.Cell α β γ) → Inkproof.Scene.DisplayList
+def Inkproof.Scene.compileLine : {α : Type u} → {β : Type v} → [inst : LE α] → Inkproof.Scene.LineStyle → Inkproof.Scene.Projection α β → Inkproof.Core.Segmented α β → Inkproof.Scene.DisplayList
+theorem Inkproof.Scene.compileLine_covers_iff : ∀ {α : Type u} {β : Type v} [inst : LE α] (st : Inkproof.Scene.LineStyle), st.halfWidth = 0 → ∀ (proj : Inkproof.Scene.Projection α β) (g : Inkproof.Core.Segmented α β) (px : Inkproof.Scene.Pixel), (Inkproof.Scene.compileLine st proj g).Covers px ↔ (Inkproof.Scene.compileLine { paint := st.paint, halfWidth := st.halfWidth, reduce := Bool.false } proj g).Covers px
+theorem Inkproof.Scene.compileLine_no_bridge : ∀ {α : Type u} {β : Type v} [inst : LE α] (st : Inkproof.Scene.LineStyle), st.halfWidth = 0 → st.reduce = Bool.false → ∀ (proj : Inkproof.Scene.Projection α β) (g : Inkproof.Core.Segmented α β) {c : Inkproof.Scene.Command}, c ∈ Inkproof.Scene.compileLine st proj g → ∀ {p : Inkproof.Scene.Pt}, c.shape.region p → ∃ s, s ∈ g.segments.toList ∧ (Option.some p ∈ proj.points s ∨ ∃ a b, [Option.some a, Option.some b] <:+: proj.points s ∧ Inkproof.Scene.Region.seg a b p)
+def Inkproof.Scene.compileScatter : {α : Type u} → {β : Type v} → [inst : LE α] → Inkproof.Scene.ScatterStyle → Inkproof.Scene.Projection α β → Inkproof.Core.Series α β → Inkproof.Scene.DisplayList
+theorem Inkproof.Scene.compileScatter_covers : ∀ {α : Type u} {β : Type v} [inst : LE α] (st : Inkproof.Scene.ScatterStyle), 0 ≤ st.radius → ∀ (proj : Inkproof.Scene.Projection α β) (s : Inkproof.Core.Series α β) {x : α} {y : β}, (x, Option.some y) ∈ s.points → ∀ {px : Inkproof.Scene.Pixel}, px.Contains { x := proj.x x, y := proj.y y } → (Inkproof.Scene.compileScatter st proj s).Covers px
 def Inkproof.Scene.discMeetsB : Inkproof.Scene.Pt → Rat → Inkproof.Scene.Window → Bool
 theorem Inkproof.Scene.discMeetsB_iff : ∀ (c : Inkproof.Scene.Pt) (r : Rat) (w : Inkproof.Scene.Window), Inkproof.Scene.discMeetsB c r w = Bool.true ↔ (Inkproof.Scene.Region.disc c r).Meets w
 theorem Inkproof.Scene.discMeetsB_near_iff : ∀ (a : Inkproof.Scene.Pt) (r : Rat) (w : Inkproof.Scene.Window), Inkproof.Scene.discMeetsB a r w = Bool.true ↔ w.Near r a
 theorem Inkproof.Scene.exists_between : ∀ (l h y0 y1 : Rat), (∃ y, Inkproof.Scene.Between l h y ∧ y0 ≤ y ∧ y ≤ y1) ↔ y0 ≤ y1 ∧ (l ≤ y1 ∨ h ≤ y1) ∧ (y0 ≤ l ∨ y0 ≤ h)
 theorem Inkproof.Scene.exists_cell : ∀ (x : Rat) (n : Nat), 0 ≤ x → x ≤ ↑n → 0 < n → ∃ c, c < n ∧ ↑c ≤ x ∧ x ≤ ↑c + 1
 theorem Inkproof.Scene.frame_param : ∀ (a f : Inkproof.Scene.Pt) (h t : Rat), 0 < h → 0 < f.x * f.x + f.y * f.y → 0 ≤ t → t ≤ 1 → ∀ (p : Inkproof.Scene.Pt), Inkproof.Scene.Region.disc { x := a.x + t * f.x, y := a.y + t * f.y } h p → ∃ u v, 0 ≤ u ∧ u ≤ 1 ∧ 0 ≤ v ∧ v ≤ 1 ∧ p.x = (a.frame f h).fst.x + u * (a.frame f h).snd.fst.x + v * (a.frame f h).snd.snd.x ∧ p.y = (a.frame f h).fst.y + u * (a.frame f h).snd.fst.y + v * (a.frame f h).snd.snd.y
+def Inkproof.Scene.groupByKey : List Inkproof.Scene.Pt → List (List Inkproof.Scene.Pt)
+theorem Inkproof.Scene.groupByKey_spec : ∀ (l : List Inkproof.Scene.Pt), (Inkproof.Scene.groupByKey l).flatten = l ∧ ∀ (G : List Inkproof.Scene.Pt), G ∈ Inkproof.Scene.groupByKey l → ∃ q g, G = q :: g ∧ ∀ (p : Inkproof.Scene.Pt), p ∈ G → Inkproof.Scene.xKey p.x = Inkproof.Scene.xKey q.x
 instance Inkproof.Scene.instDecidableEqColor : DecidableEq Inkproof.Scene.Color
 def Inkproof.Scene.instDecidableEqColor.decEq : (x x_1 : Inkproof.Scene.Color) → Decidable (x = x_1)
 instance Inkproof.Scene.instDecidableEqColumn : DecidableEq Inkproof.Scene.Column
@@ -203,6 +254,10 @@ def Inkproof.Scene.lengthBound : Inkproof.Scene.Pt → Rat
 theorem Inkproof.Scene.lengthBound_pos : ∀ (f : Inkproof.Scene.Pt), 0 < f.x * f.x + f.y * f.y → 0 < Inkproof.Scene.lengthBound f
 theorem Inkproof.Scene.lengthBound_sq_le : ∀ (f : Inkproof.Scene.Pt), Inkproof.Scene.lengthBound f * Inkproof.Scene.lengthBound f ≤ f.x * f.x + f.y * f.y
 theorem Inkproof.Scene.list_rev_induction : ∀ {α : Type} {P : List α → Prop}, P [] → (∀ (l : List α) (x : α), P l → P (l ++ [x])) → ∀ (l : List α), P l
+def Inkproof.Scene.measure : Inkproof.Scene.Pt → Inkproof.Core.First Inkproof.Scene.Pt × Inkproof.Core.Last Inkproof.Scene.Pt × Inkproof.Core.Minimum Rat × Inkproof.Core.Maximum Rat
+theorem Inkproof.Scene.mem_compileBars : ∀ {α : Type u} {β : Type v} [inst : LE α] (st : Inkproof.Scene.BarStyle) (baseline : β) (proj : Inkproof.Scene.Projection α β) (s : Inkproof.Core.Series α β) (c : Inkproof.Scene.Command), c ∈ Inkproof.Scene.compileBars st baseline proj s ↔ ∃ x y, (x, Option.some y) ∈ s.points ∧ c = { layer := st.paint.layer, color := st.paint.color, shape := Inkproof.Scene.Shape.rect { x0 := proj.x x - st.width / 2, y0 := proj.y baseline, x1 := proj.x x + st.width / 2, y1 := proj.y y } }
+theorem Inkproof.Scene.mem_compileHeatmap : ∀ {α : Type u} {β : Type v} {γ : Type} (layer : Nat) (colorOf : γ → Inkproof.Scene.Color) (proj : Inkproof.Scene.Projection α β) (cells : Array (Inkproof.Scene.Cell α β γ)) (c : Inkproof.Scene.Command), c ∈ Inkproof.Scene.compileHeatmap layer colorOf proj cells ↔ ∃ cell, cell ∈ cells ∧ ∃ v, cell.value = Option.some v ∧ c = { layer := layer, color := colorOf v, shape := Inkproof.Scene.Shape.rect { x0 := proj.x cell.x0, y0 := proj.y cell.y0, x1 := proj.x cell.x1, y1 := proj.y cell.y1 } }
+theorem Inkproof.Scene.mem_compileScatter : ∀ {α : Type u} {β : Type v} [inst : LE α] (st : Inkproof.Scene.ScatterStyle) (proj : Inkproof.Scene.Projection α β) (s : Inkproof.Core.Series α β) (c : Inkproof.Scene.Command), c ∈ Inkproof.Scene.compileScatter st proj s ↔ ∃ x y, (x, Option.some y) ∈ s.points ∧ c = { layer := st.paint.layer, color := st.paint.color, shape := Inkproof.Scene.Shape.marker st.shape { x := proj.x x, y := proj.y y } st.radius }
 theorem Inkproof.Scene.mul_le_mul_right_iff : ∀ {x y d : Rat}, 0 < d → (x * d ≤ y * d ↔ x ≤ y)
 theorem Inkproof.Scene.mul_self_nonneg' : ∀ (r : Rat), 0 ≤ r * r
 theorem Inkproof.Scene.parallelogram_sub_tris : ∀ (a e f : Inkproof.Scene.Pt) (u v : Rat), 0 ≤ u → u ≤ 1 → 0 ≤ v → v ≤ 1 → have p := { x := a.x + u * e.x + v * f.x, y := a.y + u * e.y + v * f.y }; { a := a, b := { x := a.x + e.x, y := a.y + e.y }, c := { x := a.x + f.x, y := a.y + f.y } }.region p ∨ { a := { x := a.x + e.x + f.x, y := a.y + e.y + f.y }, b := { x := a.x + f.x, y := a.y + f.y }, c := { x := a.x + e.x, y := a.y + e.y } }.region p
@@ -210,11 +265,25 @@ def Inkproof.Scene.pixelColor : Inkproof.Scene.DisplayList → Inkproof.Scene.Co
 theorem Inkproof.Scene.pixelColor_covered : ∀ {dl : Inkproof.Scene.DisplayList} {bg : Inkproof.Scene.Color} {px : Inkproof.Scene.Pixel} {c : Inkproof.Scene.Command}, c ∈ dl → c.Covers px → ∃ c', c' ∈ dl ∧ c'.Covers px ∧ Inkproof.Scene.pixelColor dl bg px = c'.color ∧ c.layer ≤ c'.layer
 theorem Inkproof.Scene.pixelColor_of_covers : ∀ {dl : Inkproof.Scene.DisplayList} {bg : Inkproof.Scene.Color} {px : Inkproof.Scene.Pixel}, dl.Covers px → ∃ l1 c l2, dl.toList = l1 ++ c :: l2 ∧ c.Covers px ∧ Inkproof.Scene.pixelColor dl bg px = c.color ∧ (∀ (c' : Inkproof.Scene.Command), c' ∈ l1 → c'.Covers px → c'.layer ≤ c.layer) ∧ ∀ (c' : Inkproof.Scene.Command), c' ∈ l2 → c'.Covers px → c'.layer < c.layer
 theorem Inkproof.Scene.pixelColor_of_not_covers : ∀ {dl : Inkproof.Scene.DisplayList} {bg : Inkproof.Scene.Color} {px : Inkproof.Scene.Pixel}, ¬dl.Covers px → Inkproof.Scene.pixelColor dl bg px = bg
+def Inkproof.Scene.poly : List Inkproof.Scene.Pt → Inkproof.Scene.Region
+theorem Inkproof.Scene.poly_append : ∀ {A B : List Inkproof.Scene.Pt} {a b : Inkproof.Scene.Pt}, A.getLast? = Option.some a → B.head? = Option.some b → ∀ (p : Inkproof.Scene.Pt), Inkproof.Scene.poly (A ++ B) p ↔ Inkproof.Scene.poly A p ∨ Inkproof.Scene.Region.seg a b p ∨ Inkproof.Scene.poly B p
+theorem Inkproof.Scene.poly_cons_cons : ∀ (a b : Inkproof.Scene.Pt) (l : List Inkproof.Scene.Pt) (p : Inkproof.Scene.Pt), Inkproof.Scene.poly (a :: b :: l) p ↔ p = a ∨ Inkproof.Scene.Region.seg a b p ∨ Inkproof.Scene.poly (b :: l) p
+theorem Inkproof.Scene.poly_exists_y : ∀ {l : List Inkproof.Scene.Pt} {u v : Inkproof.Scene.Pt}, u ∈ l → v ∈ l → ∀ {y : Rat}, Inkproof.Scene.Between u.y v.y y → ∃ q, Inkproof.Scene.poly l q ∧ q.y = y
+theorem Inkproof.Scene.poly_mem : ∀ {l : List Inkproof.Scene.Pt} {q : Inkproof.Scene.Pt}, Inkproof.Scene.poly l q → ∃ a, a ∈ l ∧ ∃ b, b ∈ l ∧ Inkproof.Scene.Region.seg a b q
+theorem Inkproof.Scene.poly_mem_adj : ∀ {l : List Inkproof.Scene.Pt} {q : Inkproof.Scene.Pt}, Inkproof.Scene.poly l q → q ∈ l ∨ ∃ a b, [a, b] <:+: l ∧ Inkproof.Scene.Region.seg a b q
+theorem Inkproof.Scene.poly_nil : ∀ (p : Inkproof.Scene.Pt), ¬Inkproof.Scene.poly [] p
+theorem Inkproof.Scene.poly_single : ∀ (a p : Inkproof.Scene.Pt), Inkproof.Scene.poly [a] p ↔ p = a
 theorem Inkproof.Scene.quad_min : ∀ {D k E t0 t : Rat}, 0 < D → t0 * D = -k → 0 ≤ t → t ≤ 1 → D * Inkproof.Scene.clamp t0 0 1 * Inkproof.Scene.clamp t0 0 1 + 2 * Inkproof.Scene.clamp t0 0 1 * k + E ≤ D * t * t + 2 * t * k + E
+def Inkproof.Scene.reducePoints : List Inkproof.Scene.Pt → List Inkproof.Scene.Pt
+theorem Inkproof.Scene.reducePoints_covers : ∀ (l : List Inkproof.Scene.Pt) (px : Inkproof.Scene.Pixel), (Inkproof.Scene.poly (Inkproof.Scene.reducePoints l)).Covers px ↔ (Inkproof.Scene.poly l).Covers px
+def Inkproof.Scene.reduceRun : List Inkproof.Scene.Pt → List Inkproof.Scene.Pt
+theorem Inkproof.Scene.reduceRun_spec : ∀ {G : List Inkproof.Scene.Pt}, G ≠ [] → ∃ f l lo hi, G.head? = Option.some f ∧ G.getLast? = Option.some l ∧ Inkproof.Scene.reduceRun G = [f, { x := f.x, y := lo }, { x := f.x, y := hi }, l] ∧ (∃ p, p ∈ G ∧ p.y = lo) ∧ (∀ (p : Inkproof.Scene.Pt), p ∈ G → lo ≤ p.y) ∧ (∃ p, p ∈ G ∧ p.y = hi) ∧ ∀ (p : Inkproof.Scene.Pt), p ∈ G → p.y ≤ hi
 def Inkproof.Scene.render : Inkproof.Scene.DisplayList → Inkproof.Scene.Grid → Inkproof.Scene.Color → Inkproof.Scene.Image
 theorem Inkproof.Scene.render_get? : ∀ (dl : Inkproof.Scene.DisplayList) (g : Inkproof.Scene.Grid) (bg : Inkproof.Scene.Color) {px : Inkproof.Scene.Pixel}, g.Has px → (Inkproof.Scene.render dl g bg).get? px.col px.row = Option.some (Inkproof.Scene.pixelColor dl bg px)
 theorem Inkproof.Scene.render_get?_out : ∀ (dl : Inkproof.Scene.DisplayList) (g : Inkproof.Scene.Grid) (bg : Inkproof.Scene.Color) {px : Inkproof.Scene.Pixel}, ¬g.Has px → (Inkproof.Scene.render dl g bg).get? px.col px.row = Option.none
 theorem Inkproof.Scene.render_spike : ∀ {dl : Inkproof.Scene.DisplayList} {bg : Inkproof.Scene.Color} {c : Inkproof.Scene.Command}, c ∈ dl → ∀ {hw : Rat} {items : List (Inkproof.Scene.Item Inkproof.Scene.Pt)}, c.shape = Inkproof.Scene.Shape.strip hw items → ∀ {a : Inkproof.Scene.Pt}, Inkproof.Scene.Item.val a ∈ items → ∀ {px : Inkproof.Scene.Pixel}, px.Contains a → ∃ c', c' ∈ dl ∧ c'.Covers px ∧ Inkproof.Scene.pixelColor dl bg px = c'.color ∧ c.layer ≤ c'.layer
+def Inkproof.Scene.runsOf : List (Option Inkproof.Scene.Pt) → List (List Inkproof.Scene.Pt)
+theorem Inkproof.Scene.runsOf_flatten : ∀ (l : List (Option Inkproof.Scene.Pt)), (Inkproof.Scene.runsOf l).flatten = List.filterMap id l
 def Inkproof.Scene.segDiscB : Inkproof.Scene.Pt → Inkproof.Scene.Pt → Inkproof.Scene.Pt → Rat → Bool
 theorem Inkproof.Scene.segDiscB_iff : ∀ (a b c : Inkproof.Scene.Pt) (r : Rat), Inkproof.Scene.segDiscB a b c r = Bool.true ↔ ∃ q, Inkproof.Scene.Region.seg a b q ∧ Inkproof.Scene.Region.disc c r q
 def Inkproof.Scene.segMeetsB : Inkproof.Scene.Pt → Inkproof.Scene.Pt → Inkproof.Scene.Window → Bool
@@ -222,6 +291,7 @@ theorem Inkproof.Scene.segMeetsB_iff : ∀ (a b : Inkproof.Scene.Pt) (w : Inkpro
 def Inkproof.Scene.segNearB : Inkproof.Scene.Pt → Inkproof.Scene.Pt → Rat → Inkproof.Scene.Window → Bool
 theorem Inkproof.Scene.segNearB_iff : ∀ (a b : Inkproof.Scene.Pt) (r : Rat) (w : Inkproof.Scene.Window), Inkproof.Scene.segNearB a b r w = Bool.true ↔ ∃ q, Inkproof.Scene.Region.seg a b q ∧ w.Near r q
 def Inkproof.Scene.segTriangles : Rat → Inkproof.Scene.Pt → Inkproof.Scene.Pt → List Inkproof.Scene.Tri
+theorem Inkproof.Scene.seg_exists_y : ∀ {a b : Inkproof.Scene.Pt} {y : Rat}, Inkproof.Scene.Between a.y b.y y → ∃ q, Inkproof.Scene.Region.seg a b q ∧ q.y = y
 def Inkproof.Scene.spanMeetsB : Rat → Rat → Rat → Rat → Rat → Rat → Inkproof.Scene.Window → Bool
 theorem Inkproof.Scene.spanMeetsB_iff : ∀ (x0 x1 l0 l1 h0 h1 : Rat) (w : Inkproof.Scene.Window), Inkproof.Scene.spanMeetsB x0 x1 l0 l1 h0 h1 w = Bool.true ↔ (Inkproof.Scene.Region.span x0 x1 l0 l1 h0 h1).Meets w
 theorem Inkproof.Scene.sq_le_sq_neg : ∀ {a b : Rat}, a ≤ 0 → b ≤ a → a * a ≤ b * b
@@ -233,3 +303,7 @@ theorem Inkproof.Scene.thicken_seg_sub_segTriangles : ∀ {h : Rat}, 0 < h → �
 def Inkproof.Scene.winner : (Inkproof.Scene.Command → Bool) → List Inkproof.Scene.Command → Option Inkproof.Scene.Command
 def Inkproof.Scene.winnerStep : (Inkproof.Scene.Command → Bool) → Option Inkproof.Scene.Command → Inkproof.Scene.Command → Option Inkproof.Scene.Command
 theorem Inkproof.Scene.winner_spec : ∀ (cov : Inkproof.Scene.Command → Bool) (cmds : List Inkproof.Scene.Command), (Inkproof.Scene.winner cov cmds = Option.none ↔ ∀ (c : Inkproof.Scene.Command), c ∈ cmds → cov c = Bool.false) ∧ ∀ (c : Inkproof.Scene.Command), Inkproof.Scene.winner cov cmds = Option.some c → ∃ l1 l2, cmds = l1 ++ c :: l2 ∧ cov c = Bool.true ∧ (∀ (c' : Inkproof.Scene.Command), c' ∈ l1 → cov c' = Bool.true → c'.layer ≤ c.layer) ∧ ∀ (c' : Inkproof.Scene.Command), c' ∈ l2 → cov c' = Bool.true → c'.layer < c.layer
+def Inkproof.Scene.xKey : Rat → Int
+theorem Inkproof.Scene.xKey_cases : ∀ (x : Rat), x = ↑x.floor ∧ Inkproof.Scene.xKey x = 2 * x.floor ∨ ↑x.floor < x ∧ x < ↑x.floor + 1 ∧ Inkproof.Scene.xKey x = 2 * x.floor + 1
+theorem Inkproof.Scene.xKey_col : ∀ {x y : Rat} (c : Nat), Inkproof.Scene.xKey x = Inkproof.Scene.xKey y → ↑c ≤ x ∧ x ≤ ↑c + 1 → ↑c ≤ y ∧ y ≤ ↑c + 1
+theorem Inkproof.Scene.xKey_mono : ∀ {x y : Rat}, x ≤ y → Inkproof.Scene.xKey x ≤ Inkproof.Scene.xKey y

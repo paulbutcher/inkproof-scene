@@ -1,0 +1,382 @@
+/-
+Copyright (c) 2026 Paul Butcher. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+-/
+import Inkproof.Core.Segmented
+import Inkproof.Scale.Linear
+import Inkproof.Scene.Reduce
+
+namespace Inkproof.Scene
+
+open Inkproof.Core Inkproof.Scale
+
+universe u v
+
+/-- How data coordinates become grid coordinates. A chart's scales fix it; `Projection.linear` is
+the one made of two linear scales. -/
+structure Projection (α : Type u) (β : Type v) where
+  x : α → Rat
+  y : β → Rat
+
+def Projection.linear (sx sy : Linear Rat) : Projection Rat Rat := ⟨sx.map, sy.map⟩
+
+/-- The projected points of a series, a missing value staying missing. -/
+def Projection.points {α : Type u} {β : Type v} [LE α] (proj : Projection α β) (s : Series α β) :
+    List (Option Pt) :=
+  s.points.toList.map fun (x, v) => v.map fun y => ⟨proj.x x, proj.y y⟩
+
+/-- Splits at each missing value into the runs of present values between them. -/
+def runsOf : List (Option Pt) → List (List Pt)
+  | [] => []
+  | none :: rest => [] :: runsOf rest
+  | some p :: rest =>
+    match runsOf rest with
+    | [] => [[p]]
+    | r :: rs => (p :: r) :: rs
+
+/-- The runs of a segmented series: no run spans a break between segments or a missing value, so
+the points of a run are consecutive present points of one segment. -/
+def Projection.runs {α : Type u} {β : Type v} [LE α] (proj : Projection α β) (g : Segmented α β) :
+    List (List Pt) :=
+  g.segments.toList.flatMap fun s => runsOf (proj.points s)
+
+/-- The runs as strip items, each followed by an explicit gap. -/
+def Item.ofRuns : List (List Pt) → List (Item Pt)
+  | [] => []
+  | r :: rs => r.map Item.val ++ Item.gap :: Item.ofRuns rs
+
+/-- However a strip is drawn, its runs are drawn separately: the gap between two runs joins
+nothing. -/
+theorem Item.chain_ofRuns {single : Pt → Region} {join : Pt → Pt → Region}
+    (rs : List (List Pt)) (p : Pt) :
+    Item.chain single join (Item.ofRuns rs) p ↔
+      ∃ r ∈ rs, Item.chain single join (r.map Item.val) p := by
+  induction rs with
+  | nil => simp [Item.ofRuns, Item.chain]
+  | cons r rs ih =>
+    rw [Item.ofRuns, Item.chain_append_gap, ih]
+    simp
+
+theorem runsOf_flatten (l : List (Option Pt)) : (runsOf l).flatten = l.filterMap id := by
+  induction l with
+  | nil => rfl
+  | cons o rest ih =>
+    cases o with
+    | none => simpa [runsOf] using ih
+    | some p =>
+      simp only [runsOf]
+      cases hr : runsOf rest with
+      | nil =>
+        rw [hr] at ih
+        simp only [List.flatten_nil] at ih
+        simp [← ih]
+      | cons r rs =>
+        rw [hr] at ih
+        simp only [List.flatten_cons] at ih
+        simp [← ih]
+
+private theorem runsOf_spec (l : List (Option Pt)) :
+    (∀ r ∈ runsOf l, ∀ a, a ∈ r → some a ∈ l) ∧
+    (∀ r ∈ runsOf l, ∀ a b, [a, b] <:+: r → [some a, some b] <:+: l) ∧
+    (∀ r rs, runsOf l = r :: rs → ∀ q r', r = q :: r' → ∃ t, l = some q :: t) := by
+  induction l with
+  | nil => simp [runsOf]
+  | cons o rest ih =>
+    obtain ⟨ih1, ih2, ih3⟩ := ih
+    cases o with
+    | none =>
+      simp only [runsOf]
+      refine ⟨?_, ?_, ?_⟩
+      · intro r hr a ha
+        rcases List.mem_cons.mp hr with rfl | hr
+        · simp at ha
+        · exact List.mem_cons_of_mem _ (ih1 r hr a ha)
+      · intro r hr a b hab
+        rcases List.mem_cons.mp hr with rfl | hr
+        · simp at hab
+        · exact List.infix_cons (ih2 r hr a b hab)
+      · intro r rs h q r' hr
+        simp only [List.cons.injEq] at h
+        obtain ⟨rfl, -⟩ := h
+        simp at hr
+    | some p =>
+      simp only [runsOf]
+      cases hr : runsOf rest with
+      | nil =>
+        refine ⟨?_, ?_, ?_⟩
+        · intro r hr a ha
+          simp only [List.mem_singleton] at hr
+          subst hr
+          simp_all
+        · intro r hr a b hab
+          simp only [List.mem_singleton] at hr
+          subst hr
+          have := hab.length_le
+          simp at this
+        · intro r rs h q r' hq
+          simp only [List.cons.injEq] at h
+          obtain ⟨rfl, -⟩ := h
+          simp only [List.cons.injEq] at hq
+          obtain ⟨rfl, -⟩ := hq
+          exact ⟨rest, rfl⟩
+      | cons r0 rs0 =>
+        rw [hr] at ih1 ih2 ih3
+        refine ⟨?_, ?_, ?_⟩
+        · intro r hr' a ha
+          rcases List.mem_cons.mp hr' with rfl | hr'
+          · rcases List.mem_cons.mp ha with rfl | ha
+            · simp
+            · exact List.mem_cons_of_mem _ (ih1 r0 (List.mem_cons_self ..) a ha)
+          · exact List.mem_cons_of_mem _ (ih1 r (List.mem_cons_of_mem _ hr') a ha)
+        · intro r hr' a b hab
+          rcases List.mem_cons.mp hr' with rfl | hr'
+          · rcases List.infix_cons_iff.mp hab with hpre | hin
+            · obtain ⟨hap, t, ht⟩ := List.cons_prefix_cons.mp hpre
+              have ht' : r0 = b :: t := by simpa using ht.symm
+              obtain ⟨u, hu⟩ := ih3 r0 rs0 rfl b t ht'
+              rw [hap, hu]
+              exact ⟨[], u, by simp⟩
+            · exact List.infix_cons (ih2 r0 (List.mem_cons_self ..) a b hin)
+          · exact List.infix_cons (ih2 r (List.mem_cons_of_mem _ hr') a b hab)
+        · intro r rs h q r' hq
+          simp only [List.cons.injEq] at h
+          obtain ⟨rfl, -⟩ := h
+          simp only [List.cons.injEq] at hq
+          obtain ⟨rfl, -⟩ := hq
+          exact ⟨rest, rfl⟩
+
+private theorem mul_self_eq_zero' {x : Rat} (h : x * x = 0) : x = 0 := by
+  refine Classical.byContradiction fun hx => ?_
+  rcases Rat.le_total (a := 0) (b := x) with h1 | h1
+  · have := Rat.mul_pos (a := x) (b := x) (by grind) (by grind)
+    grind
+  · have := Rat.mul_pos (a := -x) (b := -x) (by grind) (by grind)
+    grind
+
+theorem Region.thicken_zero (a : Region) (p : Pt) : Region.thicken 0 a p ↔ a p := by
+  constructor
+  · rintro ⟨q, hq, h⟩
+    simp only [Region.disc, Rat.zero_mul] at h
+    have hx := mul_self_nonneg' (p.x - q.x)
+    have hy := mul_self_nonneg' (p.y - q.y)
+    have hx0 : (p.x - q.x) * (p.x - q.x) = 0 := by grind
+    have hy0 : (p.y - q.y) * (p.y - q.y) = 0 := by grind
+    have h1 : p.x - q.x = 0 := mul_self_eq_zero' hx0
+    have h2 : p.y - q.y = 0 := mul_self_eq_zero' hy0
+    have : p = q := by
+      cases p; cases q; simp only [Pt.mk.injEq]; grind
+    rwa [this]
+  · exact fun h => Region.sub_thicken 0 a p h
+
+theorem Region.covers_exists {α : Type} {rs : List α} {f : α → Region} {px : Pixel} :
+    Region.Covers (fun p => ∃ r ∈ rs, f r p) px ↔ ∃ r ∈ rs, (f r).Covers px :=
+  ⟨fun ⟨p, ⟨r, hr, h⟩, hc⟩ => ⟨r, hr, p, h, hc⟩, fun ⟨r, hr, p, h, hc⟩ => ⟨p, ⟨r, hr, h⟩, hc⟩⟩
+
+/-- A colour and a layer: how a chart paints its marks. -/
+structure Paint where
+  layer : Nat
+  color : Color
+
+/-- A line chart's style. `reduce` aggregates each run to the first, last, lowest and highest value
+of each pixel column class, which draws the same pixels as the full data for a bare line
+(`compileLine_covers_iff`); a thick line is not covered by that guarantee. -/
+structure LineStyle where
+  paint : Paint
+  halfWidth : Rat
+  reduce : Bool
+
+/-- A line chart: one strip, broken at every gap and missing value. -/
+def compileLine {α : Type u} {β : Type v} [LE α] (st : LineStyle) (proj : Projection α β)
+    (g : Segmented α β) : DisplayList :=
+  let runs := proj.runs g
+  #[⟨st.paint.layer, st.paint.color,
+    .strip st.halfWidth (Item.ofRuns (if st.reduce then runs.map reducePoints else runs))⟩]
+
+/-- An area chart: the area between the series and the line at `baseline`, broken at every gap and
+missing value. -/
+def compileArea {α : Type u} {β : Type v} [LE α] (paint : Paint) (baseline : β)
+    (proj : Projection α β) (g : Segmented α β) : DisplayList :=
+  #[⟨paint.layer, paint.color, .area (proj.y baseline) (Item.ofRuns (proj.runs g))⟩]
+
+/-- A bar chart's style: `width` is the bar width in grid units. -/
+structure BarStyle where
+  paint : Paint
+  width : Rat
+
+/-- A bar chart: for each present value, a bar of `width` centred on its x, from `baseline` to the
+value. A missing value has no bar. -/
+def compileBars {α : Type u} {β : Type v} [LE α] (st : BarStyle) (baseline : β)
+    (proj : Projection α β) (s : Series α β) : DisplayList :=
+  s.points.filterMap fun (x, v) =>
+    v.map fun y => ⟨st.paint.layer, st.paint.color,
+      .rect ⟨proj.x x - st.width / 2, proj.y baseline, proj.x x + st.width / 2, proj.y y⟩⟩
+
+/-- A scatter chart's style. -/
+structure ScatterStyle where
+  paint : Paint
+  shape : MarkerShape
+  radius : Rat
+
+/-- A scatter chart: a marker at each present value. -/
+def compileScatter {α : Type u} {β : Type v} [LE α] (st : ScatterStyle) (proj : Projection α β)
+    (s : Series α β) : DisplayList :=
+  s.points.filterMap fun (x, v) =>
+    v.map fun y => ⟨st.paint.layer, st.paint.color,
+      .marker st.shape ⟨proj.x x, proj.y y⟩ st.radius⟩
+
+/-- A heatmap cell: the rectangle from `(x0, y0)` to `(x1, y1)` and its value, if any. -/
+structure Cell (α : Type u) (β : Type v) (γ : Type) where
+  x0 : α
+  x1 : α
+  y0 : β
+  y1 : β
+  value : Option γ
+
+/-- A heatmap: a rectangle for each cell with a value, coloured by `colorOf`. -/
+def compileHeatmap {α : Type u} {β : Type v} {γ : Type} (layer : Nat) (colorOf : γ → Color)
+    (proj : Projection α β) (cells : Array (Cell α β γ)) : DisplayList :=
+  cells.filterMap fun c =>
+    c.value.map fun v => ⟨layer, colorOf v,
+      .rect ⟨proj.x c.x0, proj.y c.y0, proj.x c.x1, proj.y c.y1⟩⟩
+
+section Theorems
+
+variable {α : Type u} {β : Type v} [LE α]
+
+private theorem covers_singleton {c : Command} {px : Pixel} :
+    DisplayList.Covers #[c] px ↔ c.shape.region.Covers px := by
+  simp [DisplayList.Covers, Command.Covers]
+
+private theorem strip_covers_runs {c : Command} {hw : Rat} {rs : List (List Pt)} {px : Pixel}
+    (h : c.shape = .strip hw (Item.ofRuns rs)) :
+    c.Covers px ↔ ∃ r ∈ rs, (Region.thicken hw (poly r)).Covers px := by
+  have : c.shape.region = fun p => ∃ r ∈ rs, Region.thicken hw (poly r) p := by
+    rw [h]
+    funext p
+    apply propext
+    simp only [Shape.region, Region.thicken, Item.chain_ofRuns]
+    constructor
+    · rintro ⟨q, ⟨r, hr, hq⟩, hd⟩; exact ⟨r, hr, q, hq, hd⟩
+    · rintro ⟨r, hr, q, hq, hd⟩; exact ⟨q, ⟨r, hr, hq⟩, hd⟩
+  simp only [Command.Covers, this]
+  exact Region.covers_exists
+
+/-- Reducing a bare line to the first, last, lowest and highest value of each pixel column class
+draws exactly the pixels the full data does. The theorem holds for every series, sorted
+or not: it needs no assumption about the data or the projection. -/
+theorem compileLine_covers_iff (st : LineStyle) (hw : st.halfWidth = 0) (proj : Projection α β)
+    (g : Segmented α β) (px : Pixel) :
+    (compileLine st proj g).Covers px ↔
+      (compileLine { st with reduce := false } proj g).Covers px := by
+  have key : ∀ b : Bool, (compileLine { st with reduce := b } proj g).Covers px ↔
+      ∃ r ∈ (if b then (proj.runs g).map reducePoints else proj.runs g),
+        (poly r).Covers px := by
+    intro b
+    rw [compileLine, covers_singleton]
+    rw [← Command.Covers, strip_covers_runs (by rfl)]
+    simp only [hw]
+    exact ⟨fun ⟨r, hr, h⟩ => ⟨r, hr, Region.covers_congr (Region.thicken_zero _) px |>.mp h⟩,
+      fun ⟨r, hr, h⟩ => ⟨r, hr, Region.covers_congr (Region.thicken_zero _) px |>.mpr h⟩⟩
+  have e : { st with reduce := st.reduce } = st := rfl
+  have hL := key st.reduce
+  rw [e] at hL
+  rw [hL, key false]
+  cases hb : st.reduce
+  · exact Iff.rfl
+  · simp only [ite_true, List.mem_map]
+    constructor
+    · rintro ⟨_, ⟨r, hr, rfl⟩, h⟩
+      exact ⟨r, hr, (reducePoints_covers r px).mp h⟩
+    · rintro ⟨r, hr, h⟩
+      exact ⟨reducePoints r, ⟨r, hr, rfl⟩, (reducePoints_covers r px).mpr h⟩
+
+/-- No line is drawn across a gap: every point of the unreduced bare line of a segmented
+series is a projected present point, or lies on the segment between two projected present points
+that are adjacent in one segment, with no break and no missing value between them. -/
+theorem compileLine_no_bridge (st : LineStyle) (hw : st.halfWidth = 0) (hr : st.reduce = false)
+    (proj : Projection α β) (g : Segmented α β) {c : Command}
+    (hc : c ∈ compileLine st proj g) {p : Pt} (h : c.shape.region p) :
+    ∃ s ∈ g.segments.toList, some p ∈ proj.points s ∨
+      ∃ a b, [some a, some b] <:+: proj.points s ∧ Region.seg a b p := by
+  have hcmd : c = ⟨st.paint.layer, st.paint.color,
+      .strip st.halfWidth (Item.ofRuns (proj.runs g))⟩ := by
+    simpa [compileLine, hr] using hc
+  subst hcmd
+  simp only [Shape.region, hw, Region.thicken_zero, Item.chain_ofRuns] at h
+  obtain ⟨r, hrun, hp⟩ := h
+  change poly r p at hp
+  obtain ⟨s, hs, hrs⟩ := List.mem_flatMap.mp hrun
+  refine ⟨s, hs, ?_⟩
+  obtain ⟨h1, h2, -⟩ := runsOf_spec (proj.points s)
+  rcases poly_mem_adj hp with hm | ⟨a, b, hi, hseg⟩
+  · exact Or.inl (h1 r hrs p hm)
+  · exact Or.inr ⟨a, b, h2 r hrs a b hi, hseg⟩
+
+/-- An area chart's runs are filled separately, as a strip's are. -/
+theorem compileArea_no_bridge (paint : Paint) (baseline : β) (proj : Projection α β)
+    (g : Segmented α β) {c : Command} (hc : c ∈ compileArea paint baseline proj g) {p : Pt}
+    (h : c.shape.region p) :
+    ∃ r ∈ proj.runs g, (Shape.area (proj.y baseline) (r.map Item.val)).region p := by
+  have hcmd : c = ⟨paint.layer, paint.color,
+      .area (proj.y baseline) (Item.ofRuns (proj.runs g))⟩ := by
+    simpa [compileArea] using hc
+  subst hcmd
+  exact (Item.chain_ofRuns _ _).mp h
+
+theorem mem_compileBars (st : BarStyle) (baseline : β) (proj : Projection α β) (s : Series α β)
+    (c : Command) :
+    c ∈ compileBars st baseline proj s ↔ ∃ x y, (x, some y) ∈ s.points ∧
+      c = ⟨st.paint.layer, st.paint.color, .rect ⟨proj.x x - st.width / 2, proj.y baseline,
+        proj.x x + st.width / 2, proj.y y⟩⟩ := by
+  simp only [compileBars, Array.mem_filterMap]
+  constructor
+  · rintro ⟨⟨x, _ | y⟩, hm, h⟩
+    · simp at h
+    · exact ⟨x, y, hm, by simpa using h.symm⟩
+  · rintro ⟨x, y, hm, rfl⟩
+    exact ⟨(x, some y), hm, rfl⟩
+
+theorem mem_compileScatter (st : ScatterStyle) (proj : Projection α β) (s : Series α β)
+    (c : Command) :
+    c ∈ compileScatter st proj s ↔ ∃ x y, (x, some y) ∈ s.points ∧
+      c = ⟨st.paint.layer, st.paint.color, .marker st.shape ⟨proj.x x, proj.y y⟩ st.radius⟩ := by
+  simp only [compileScatter, Array.mem_filterMap]
+  constructor
+  · rintro ⟨⟨x, _ | y⟩, hm, h⟩
+    · simp at h
+    · exact ⟨x, y, hm, by simpa using h.symm⟩
+  · rintro ⟨x, y, hm, rfl⟩
+    exact ⟨(x, some y), hm, rfl⟩
+
+/-- Every present sample is drawn: a pixel containing its projected point is covered, so no
+sample is lost however small the marker. -/
+theorem compileScatter_covers (st : ScatterStyle) (hr : 0 ≤ st.radius) (proj : Projection α β)
+    (s : Series α β) {x : α} {y : β} (hm : (x, some y) ∈ s.points) {px : Pixel}
+    (hc : px.Contains ⟨proj.x x, proj.y y⟩) : (compileScatter st proj s).Covers px := by
+  refine ⟨_, (mem_compileScatter st proj s _).mpr ⟨x, y, hm, rfl⟩, ⟨proj.x x, proj.y y⟩, ?_, hc⟩
+  cases hs : st.shape with
+  | square =>
+    simp only [Shape.region, Region.box, Between]
+    grind
+  | circle =>
+    simp only [Shape.region, Region.disc, Rat.sub_self, Rat.zero_mul, Rat.add_zero]
+    exact mul_self_nonneg' _
+
+omit [LE α] in
+theorem mem_compileHeatmap {γ : Type} (layer : Nat) (colorOf : γ → Color) (proj : Projection α β)
+    (cells : Array (Cell α β γ)) (c : Command) :
+    c ∈ compileHeatmap layer colorOf proj cells ↔ ∃ cell ∈ cells, ∃ v, cell.value = some v ∧
+      c = ⟨layer, colorOf v, .rect ⟨proj.x cell.x0, proj.y cell.y0, proj.x cell.x1,
+        proj.y cell.y1⟩⟩ := by
+  simp only [compileHeatmap, Array.mem_filterMap]
+  constructor
+  · rintro ⟨cell, hm, h⟩
+    cases hv : cell.value with
+    | none => simp [hv] at h
+    | some v => exact ⟨cell, hm, v, hv, by simpa [hv] using h.symm⟩
+  · rintro ⟨cell, hm, v, hv, rfl⟩
+    exact ⟨cell, hm, by simp [hv]⟩
+
+end Theorems
+
+end Inkproof.Scene

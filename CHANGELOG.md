@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.0
+
+- Compilers from series, scales and aggregates to display lists for line, area, bar, scatter and heatmap charts.
+- Proof that first/min/max/last reduction of a bare line covers the same pixels as the full data, and that no line is drawn across a gap or missing value.
+
 ## v0.3.0
 
 - A pure-Lean reference rasterizer from a display list to a pixel buffer, proved to paint exactly the pixels the raster model covers, in layer order.
