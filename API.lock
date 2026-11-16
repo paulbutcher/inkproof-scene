@@ -13,7 +13,9 @@ field Inkproof.Scene.Cell.y1 : {α : Type u} → {β : Type v} → {γ : Type} �
 structure Inkproof.Scene.Color : Type
 field Inkproof.Scene.Color.a : Inkproof.Scene.Color → UInt8
 field Inkproof.Scene.Color.b : Inkproof.Scene.Color → UInt8
+def Inkproof.Scene.Color.contrast : Inkproof.Scene.Color → Inkproof.Scene.Color → Float
 field Inkproof.Scene.Color.g : Inkproof.Scene.Color → UInt8
+def Inkproof.Scene.Color.luminance : Inkproof.Scene.Color → Float
 constructor Inkproof.Scene.Color.mk : UInt8 → UInt8 → UInt8 → UInt8 → Inkproof.Scene.Color
 field Inkproof.Scene.Color.r : Inkproof.Scene.Color → UInt8
 structure Inkproof.Scene.Column : Type
@@ -30,6 +32,12 @@ field Inkproof.Scene.Command.layer : Inkproof.Scene.Command → Nat
 theorem Inkproof.Scene.Command.meetsB_iff : ∀ (c : Inkproof.Scene.Command) (px : Inkproof.Scene.Pixel), c.shape.meetsB px.window = Bool.true ↔ c.Covers px
 constructor Inkproof.Scene.Command.mk : Nat → Inkproof.Scene.Color → Inkproof.Scene.Shape → Inkproof.Scene.Command
 field Inkproof.Scene.Command.shape : Inkproof.Scene.Command → Inkproof.Scene.Shape
+inductive Inkproof.Scene.Dash : Type
+constructor Inkproof.Scene.Dash.dashed : Inkproof.Scene.Dash
+constructor Inkproof.Scene.Dash.dotted : Inkproof.Scene.Dash
+def Inkproof.Scene.Dash.ofNat : Nat → Inkproof.Scene.Dash
+theorem Inkproof.Scene.Dash.ofNat_ctorIdx : ∀ (x : Inkproof.Scene.Dash), Inkproof.Scene.Dash.ofNat x.ctorIdx = x
+constructor Inkproof.Scene.Dash.solid : Inkproof.Scene.Dash
 def Inkproof.Scene.DisplayList : Type
 def Inkproof.Scene.DisplayList.Covers : Inkproof.Scene.DisplayList → Inkproof.Scene.Pixel → Prop
 theorem Inkproof.Scene.DisplayList.Covers.mono : ∀ {a b : Inkproof.Scene.DisplayList}, (∀ (c : Inkproof.Scene.Command), c ∈ a → c ∈ b) → ∀ {px : Inkproof.Scene.Pixel}, a.Covers px → b.Covers px
@@ -152,6 +160,11 @@ constructor Inkproof.Scene.ScatterStyle.mk : Inkproof.Scene.Paint → Inkproof.S
 field Inkproof.Scene.ScatterStyle.paint : Inkproof.Scene.ScatterStyle → Inkproof.Scene.Paint
 field Inkproof.Scene.ScatterStyle.radius : Inkproof.Scene.ScatterStyle → Rat
 field Inkproof.Scene.ScatterStyle.shape : Inkproof.Scene.ScatterStyle → Inkproof.Scene.MarkerShape
+structure Inkproof.Scene.SeriesStyle : Type
+field Inkproof.Scene.SeriesStyle.color : Inkproof.Scene.SeriesStyle → Inkproof.Scene.Color
+field Inkproof.Scene.SeriesStyle.dash : Inkproof.Scene.SeriesStyle → Inkproof.Scene.Dash
+field Inkproof.Scene.SeriesStyle.marker : Inkproof.Scene.SeriesStyle → Inkproof.Scene.MarkerShape
+constructor Inkproof.Scene.SeriesStyle.mk : Inkproof.Scene.Color → Inkproof.Scene.MarkerShape → Inkproof.Scene.Dash → Inkproof.Scene.SeriesStyle
 inductive Inkproof.Scene.Shape : Type
 constructor Inkproof.Scene.Shape.area : Rat → List (Inkproof.Scene.Item Inkproof.Scene.Pt) → Inkproof.Scene.Shape
 theorem Inkproof.Scene.Shape.brecOn.eq : ∀ {motive : Inkproof.Scene.Shape → Sort u} (t : Inkproof.Scene.Shape) (F_1 : (t : Inkproof.Scene.Shape) → Inkproof.Scene.Shape.below t → motive t), Inkproof.Scene.Shape.brecOn t F_1 = F_1 t (Inkproof.Scene.Shape.brecOn.go t F_1).2
@@ -168,6 +181,27 @@ def Inkproof.Scene.Shape.region : Inkproof.Scene.Shape → Inkproof.Scene.Region
 constructor Inkproof.Scene.Shape.strip : Rat → List (Inkproof.Scene.Item Inkproof.Scene.Pt) → Inkproof.Scene.Shape
 theorem Inkproof.Scene.Shape.strip_region_of_val : ∀ {hw : Rat} {items : List (Inkproof.Scene.Item Inkproof.Scene.Pt)} {a : Inkproof.Scene.Pt}, Inkproof.Scene.Item.val a ∈ items → (Inkproof.Scene.Shape.strip hw items).region a
 constructor Inkproof.Scene.Shape.text : Inkproof.Scene.Rect → String → Inkproof.Scene.Shape
+inductive Inkproof.Scene.Theme : Type
+def Inkproof.Scene.Theme.Distinguishable : Inkproof.Scene.Theme → Prop
+def Inkproof.Scene.Theme.background : Inkproof.Scene.Theme → Inkproof.Scene.Color
+theorem Inkproof.Scene.Theme.background_dark : Inkproof.Scene.Theme.dark.background = { r := 18, g := 18, b := 18, a := 255 }
+theorem Inkproof.Scene.Theme.background_light : Inkproof.Scene.Theme.light.background = { r := 255, g := 255, b := 255, a := 255 }
+constructor Inkproof.Scene.Theme.dark : Inkproof.Scene.Theme
+theorem Inkproof.Scene.Theme.distinguishable : ∀ (t : Inkproof.Scene.Theme), t.Distinguishable
+instance Inkproof.Scene.Theme.instDecidableDistinguishable : (t : Inkproof.Scene.Theme) → Decidable t.Distinguishable
+constructor Inkproof.Scene.Theme.light : Inkproof.Scene.Theme
+def Inkproof.Scene.Theme.meetsContrast : Inkproof.Scene.Theme → Bool
+def Inkproof.Scene.Theme.minSeriesContrast : Inkproof.Scene.Theme → Float
+def Inkproof.Scene.Theme.ofNat : Nat → Inkproof.Scene.Theme
+theorem Inkproof.Scene.Theme.ofNat_ctorIdx : ∀ (x : Inkproof.Scene.Theme), Inkproof.Scene.Theme.ofNat x.ctorIdx = x
+def Inkproof.Scene.Theme.series : Inkproof.Scene.Theme → Array Inkproof.Scene.SeriesStyle
+def Inkproof.Scene.Theme.seriesStyle : Inkproof.Scene.Theme → Nat → Inkproof.Scene.SeriesStyle
+theorem Inkproof.Scene.Theme.seriesStyle_add_size : ∀ (t : Inkproof.Scene.Theme) (i : Nat), t.seriesStyle (i + 6) = t.seriesStyle i
+theorem Inkproof.Scene.Theme.seriesStyle_of_lt : ∀ (t : Inkproof.Scene.Theme) {i : Nat} (h : i < 6), t.seriesStyle i = t.series[i]
+theorem Inkproof.Scene.Theme.series_size : ∀ (t : Inkproof.Scene.Theme), t.series.size = 6
+def Inkproof.Scene.Theme.text : Inkproof.Scene.Theme → Inkproof.Scene.Color
+theorem Inkproof.Scene.Theme.text_dark : Inkproof.Scene.Theme.dark.text = { r := 238, g := 238, b := 238, a := 255 }
+theorem Inkproof.Scene.Theme.text_light : Inkproof.Scene.Theme.light.text = { r := 33, g := 33, b := 33, a := 255 }
 structure Inkproof.Scene.Tri : Type
 field Inkproof.Scene.Tri.a : Inkproof.Scene.Tri → Inkproof.Scene.Pt
 field Inkproof.Scene.Tri.b : Inkproof.Scene.Tri → Inkproof.Scene.Pt
@@ -212,6 +246,7 @@ instance Inkproof.Scene.instDecidableEqColor : DecidableEq Inkproof.Scene.Color
 def Inkproof.Scene.instDecidableEqColor.decEq : (x x_1 : Inkproof.Scene.Color) → Decidable (x = x_1)
 instance Inkproof.Scene.instDecidableEqColumn : DecidableEq Inkproof.Scene.Column
 def Inkproof.Scene.instDecidableEqColumn.decEq : (x x_1 : Inkproof.Scene.Column) → Decidable (x = x_1)
+instance Inkproof.Scene.instDecidableEqDash : DecidableEq Inkproof.Scene.Dash
 instance Inkproof.Scene.instDecidableEqGrid : DecidableEq Inkproof.Scene.Grid
 def Inkproof.Scene.instDecidableEqGrid.decEq : (x x_1 : Inkproof.Scene.Grid) → Decidable (x = x_1)
 instance Inkproof.Scene.instDecidableEqItem : {α : Type} → [DecidableEq α] → DecidableEq (Inkproof.Scene.Item α)
@@ -223,6 +258,9 @@ instance Inkproof.Scene.instDecidableEqPt : DecidableEq Inkproof.Scene.Pt
 def Inkproof.Scene.instDecidableEqPt.decEq : (x x_1 : Inkproof.Scene.Pt) → Decidable (x = x_1)
 instance Inkproof.Scene.instDecidableEqRect : DecidableEq Inkproof.Scene.Rect
 def Inkproof.Scene.instDecidableEqRect.decEq : (x x_1 : Inkproof.Scene.Rect) → Decidable (x = x_1)
+instance Inkproof.Scene.instDecidableEqSeriesStyle : DecidableEq Inkproof.Scene.SeriesStyle
+def Inkproof.Scene.instDecidableEqSeriesStyle.decEq : (x x_1 : Inkproof.Scene.SeriesStyle) → Decidable (x = x_1)
+instance Inkproof.Scene.instDecidableEqTheme : DecidableEq Inkproof.Scene.Theme
 instance Inkproof.Scene.instDecidableEqTri : DecidableEq Inkproof.Scene.Tri
 def Inkproof.Scene.instDecidableEqTri.decEq : (x x_1 : Inkproof.Scene.Tri) → Decidable (x = x_1)
 instance Inkproof.Scene.instDecidableEqWindow : DecidableEq Inkproof.Scene.Window
@@ -233,6 +271,8 @@ instance Inkproof.Scene.instReprColumn : Repr Inkproof.Scene.Column
 def Inkproof.Scene.instReprColumn.repr : Inkproof.Scene.Column → Nat → Std.Format
 instance Inkproof.Scene.instReprCommand : Repr Inkproof.Scene.Command
 def Inkproof.Scene.instReprCommand.repr : Inkproof.Scene.Command → Nat → Std.Format
+instance Inkproof.Scene.instReprDash : Repr Inkproof.Scene.Dash
+def Inkproof.Scene.instReprDash.repr : Inkproof.Scene.Dash → Nat → Std.Format
 instance Inkproof.Scene.instReprGrid : Repr Inkproof.Scene.Grid
 def Inkproof.Scene.instReprGrid.repr : Inkproof.Scene.Grid → Nat → Std.Format
 instance Inkproof.Scene.instReprItem : {α : Type} → [Repr α] → Repr (Inkproof.Scene.Item α)
@@ -245,8 +285,12 @@ instance Inkproof.Scene.instReprPt : Repr Inkproof.Scene.Pt
 def Inkproof.Scene.instReprPt.repr : Inkproof.Scene.Pt → Nat → Std.Format
 instance Inkproof.Scene.instReprRect : Repr Inkproof.Scene.Rect
 def Inkproof.Scene.instReprRect.repr : Inkproof.Scene.Rect → Nat → Std.Format
+instance Inkproof.Scene.instReprSeriesStyle : Repr Inkproof.Scene.SeriesStyle
+def Inkproof.Scene.instReprSeriesStyle.repr : Inkproof.Scene.SeriesStyle → Nat → Std.Format
 instance Inkproof.Scene.instReprShape : Repr Inkproof.Scene.Shape
 def Inkproof.Scene.instReprShape.repr : Inkproof.Scene.Shape → Nat → Std.Format
+instance Inkproof.Scene.instReprTheme : Repr Inkproof.Scene.Theme
+def Inkproof.Scene.instReprTheme.repr : Inkproof.Scene.Theme → Nat → Std.Format
 instance Inkproof.Scene.instReprTri : Repr Inkproof.Scene.Tri
 def Inkproof.Scene.instReprTri.repr : Inkproof.Scene.Tri → Nat → Std.Format
 instance Inkproof.Scene.instReprWindow : Repr Inkproof.Scene.Window

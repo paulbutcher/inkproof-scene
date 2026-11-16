@@ -15,3 +15,4 @@ import Inkproof.Scene.Meet
 import Inkproof.Scene.Rasterize
 import Inkproof.Scene.Render
 import Inkproof.Scene.PaintOrder
+import Inkproof.Scene.Palette

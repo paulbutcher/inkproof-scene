@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.0
+
+- `Theme` with contrast-checked light and dark palettes whose series differ by marker and dash as well as colour, and the WCAG `Color.luminance` and `Color.contrast` they are checked with.
+
 ## v0.6.0
 
 - `DisplayList.paintOrder`, the stable sort of commands by layer, with proofs that it is a permutation, sorted by layer and keeps list order within a layer, and that painting in this order gives `pixelColor`.
