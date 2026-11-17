@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.1
+
+- Lasm tests run under @lasm/cli 0.8.0.
+
 ## v0.7.0
 
 - `Theme` with contrast-checked light and dark palettes whose series differ by marker and dash as well as colour, and the WCAG `Color.luminance` and `Color.contrast` they are checked with.
