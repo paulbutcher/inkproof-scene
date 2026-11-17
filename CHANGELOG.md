@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.0
+
+- `compileEnvelope` draws per-column lowest and highest values as one envelope, with a gap at each absent column.
+
 ## v0.7.1
 
 - Lasm tests run under @lasm/cli 0.8.0.

@@ -198,6 +198,27 @@ def compileArea {α : Type u} {β : Type v} [LE α] (paint : Paint) (baseline : 
     (proj : Projection α β) (g : Segmented α β) : DisplayList :=
   #[⟨paint.layer, paint.color, .area (proj.y baseline) (Item.ofRuns (proj.runs g))⟩]
 
+/-- The items of an envelope over per-column extents, `none` being an absent column: the present
+columns, with one gap in place of each stretch of absent columns after a present one. The flag is
+whether the last item is a gap or there is none yet. -/
+def envelopeItems : Bool → List (Option Column) → List (Item Column)
+  | _, [] => []
+  | _, some c :: rest => .val c :: envelopeItems false rest
+  | true, none :: rest => envelopeItems true rest
+  | false, none :: rest => .gap :: envelopeItems true rest
+
+/-- The projected columns of per-column extents, an absent column staying absent. Column `i` lies
+at `proj.x i`. -/
+def envelopeColumns {β : Type v} (proj : Projection Nat β) (cols : Array (Option (β × β))) :
+    List (Option Column) :=
+  cols.toList.mapIdx fun i o => o.map fun (lo, hi) => ⟨proj.x i, proj.y lo, proj.y hi⟩
+
+/-- An envelope chart: the lowest and highest value of each column, drawn as one envelope. An absent
+column is not drawn, and the columns on either side of it are not joined. -/
+def compileEnvelope {β : Type v} (paint : Paint) (proj : Projection Nat β)
+    (cols : Array (Option (β × β))) : DisplayList :=
+  #[⟨paint.layer, paint.color, .envelope (envelopeItems true (envelopeColumns proj cols))⟩]
+
 /-- A bar chart's style: `width` is the bar width in grid units. -/
 structure BarStyle where
   paint : Paint
@@ -376,6 +397,108 @@ theorem mem_compileHeatmap {γ : Type} (layer : Nat) (colorOf : γ → Color) (p
     | some v => exact ⟨cell, hm, v, hv, by simpa [hv] using h.symm⟩
   · rintro ⟨cell, hm, v, hv, rfl⟩
     exact ⟨cell, hm, by simp [hv]⟩
+
+theorem mem_envelopeItems (f : Bool) (l : List (Option Column)) (c : Column) :
+    Item.val c ∈ envelopeItems f l ↔ some c ∈ l := by
+  induction l generalizing f with
+  | nil => simp [envelopeItems]
+  | cons o rest ih =>
+    cases o with
+    | some d => simp [envelopeItems, ih]
+    | none => cases f <;> simp [envelopeItems, ih]
+
+/-- Nothing joins the columns either side of an absent one: a point of an envelope lies in the span
+of one column, or between two columns that are adjacent in the input. -/
+theorem envelopeItems_no_bridge (f : Bool) (l : List (Option Column)) {p : Pt}
+    (h : Item.chain (fun c => Region.span c.x c.x c.lo c.lo c.hi c.hi)
+      (fun a b => Region.span a.x b.x a.lo b.lo a.hi b.hi) (envelopeItems f l) p) :
+    (∃ c, some c ∈ l ∧ Region.span c.x c.x c.lo c.lo c.hi c.hi p) ∨
+      ∃ a b, [some a, some b] <:+: l ∧ Region.span a.x b.x a.lo b.lo a.hi b.hi p := by
+  induction l generalizing f with
+  | nil => simp [envelopeItems, Item.chain] at h
+  | cons o rest ih =>
+    cases o with
+    | none =>
+      cases f
+      · simp only [envelopeItems, Item.chain] at h
+        rcases ih true h with ⟨c, hc, hp⟩ | ⟨a, b, hi, hp⟩
+        · exact Or.inl ⟨c, List.mem_cons_of_mem _ hc, hp⟩
+        · exact Or.inr ⟨a, b, List.infix_cons hi, hp⟩
+      · simp only [envelopeItems] at h
+        rcases ih true h with ⟨c, hc, hp⟩ | ⟨a, b, hi, hp⟩
+        · exact Or.inl ⟨c, List.mem_cons_of_mem _ hc, hp⟩
+        · exact Or.inr ⟨a, b, List.infix_cons hi, hp⟩
+    | some a =>
+      simp only [envelopeItems, Item.chain] at h
+      rcases h with h | h | h
+      · exact Or.inl ⟨a, List.mem_cons_self .., h⟩
+      · cases rest with
+        | nil => simp [envelopeItems] at h
+        | cons o' rest' =>
+          cases o' with
+          | none => cases rest' <;> simp [envelopeItems] at h
+          | some b =>
+            simp only [envelopeItems] at h
+            exact Or.inr ⟨a, b, ⟨[], rest', by simp⟩, h⟩
+      · rcases ih false h with ⟨c, hc, hp⟩ | ⟨a', b, hi, hp⟩
+        · exact Or.inl ⟨c, List.mem_cons_of_mem _ hc, hp⟩
+        · exact Or.inr ⟨a', b, List.infix_cons hi, hp⟩
+
+theorem mem_envelopeColumns {β : Type v} (proj : Projection Nat β) (cols : Array (Option (β × β)))
+    (c : Column) :
+    some c ∈ envelopeColumns proj cols ↔
+      ∃ i lo hi, cols[i]? = some (some (lo, hi)) ∧ c = ⟨proj.x i, proj.y lo, proj.y hi⟩ := by
+  simp only [envelopeColumns, List.mem_mapIdx, Array.getElem?_eq_some_iff]
+  constructor
+  · rintro ⟨i, hi, h⟩
+    have hi' : i < cols.size := by simpa using hi
+    cases hc : cols[i] with
+    | none => simp [hc] at h
+    | some v =>
+      obtain ⟨lo, hi2⟩ := v
+      refine ⟨i, lo, hi2, ⟨hi', hc⟩, ?_⟩
+      simp [hc] at h
+      exact h.symm
+  · rintro ⟨i, lo, hi, ⟨hlt, h⟩, rfl⟩
+    refine ⟨i, by simpa using hlt, ?_⟩
+    simp [h]
+
+/-- Exactly the present columns are drawn: each at its own x, and no absent column contributes. -/
+theorem mem_compileEnvelope_columns {β : Type v} (paint : Paint) (proj : Projection Nat β)
+    (cols : Array (Option (β × β))) (c : Column) :
+    (∃ cmd ∈ compileEnvelope paint proj cols, ∃ items, cmd.shape = .envelope items ∧
+        Item.val c ∈ items) ↔
+      ∃ i lo hi, cols[i]? = some (some (lo, hi)) ∧ c = ⟨proj.x i, proj.y lo, proj.y hi⟩ := by
+  rw [← mem_envelopeColumns, ← mem_envelopeItems true]
+  simp [compileEnvelope]
+
+/-- No line is drawn across an absent column: every point of the envelope lies in the span of one
+present column, or between two present columns that are adjacent in the input. -/
+theorem compileEnvelope_no_bridge {β : Type v} (paint : Paint) (proj : Projection Nat β)
+    (cols : Array (Option (β × β))) {c : Command} (hc : c ∈ compileEnvelope paint proj cols)
+    {p : Pt} (h : c.shape.region p) :
+    (∃ c, some c ∈ envelopeColumns proj cols ∧ Region.span c.x c.x c.lo c.lo c.hi c.hi p) ∨
+      ∃ a b, [some a, some b] <:+: envelopeColumns proj cols ∧
+        Region.span a.x b.x a.lo b.lo a.hi b.hi p := by
+  have : c = ⟨paint.layer, paint.color, .envelope (envelopeItems true (envelopeColumns proj cols))⟩ := by
+    simpa [compileEnvelope] using hc
+  subst this
+  exact envelopeItems_no_bridge true _ h
+
+/-- Every present column is drawn: a pixel containing the projected lowest value of the column is
+covered. -/
+theorem compileEnvelope_covers {β : Type v} (paint : Paint) (proj : Projection Nat β)
+    (cols : Array (Option (β × β))) {i : Nat} {lo hi : β} (h : cols[i]? = some (some (lo, hi)))
+    {px : Pixel} (hc : px.Contains ⟨proj.x i, proj.y lo⟩) :
+    (compileEnvelope paint proj cols).Covers px := by
+  have hm : Item.val (⟨proj.x i, proj.y lo, proj.y hi⟩ : Column) ∈
+      envelopeItems true (envelopeColumns proj cols) :=
+    (mem_envelopeItems _ _ _).mpr ((mem_envelopeColumns ..).mpr ⟨i, lo, hi, h, rfl⟩)
+  refine ⟨⟨paint.layer, paint.color, .envelope (envelopeItems true (envelopeColumns proj cols))⟩,
+    by simp [compileEnvelope], ⟨proj.x i, proj.y lo⟩, ?_, hc⟩
+  refine Item.single_sub_chain hm _ ⟨0, by grind, by grind, by grind, ?_⟩
+  simp [Between]
+  grind
 
 end Theorems
 
