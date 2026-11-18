@@ -57,6 +57,13 @@ theorem Item.chain_ofRuns {single : Pt → Region} {join : Pt → Pt → Region}
     rw [Item.ofRuns, Item.chain_append_gap, ih]
     simp
 
+/-- Splitting a strip built from runs at its gaps gives the runs back. -/
+theorem Item.runs_ofRuns (rs : List (List Pt)) : Item.runs (Item.ofRuns rs) = rs := by
+  induction rs with
+  | nil => rfl
+  | cons r rs ih =>
+    rw [Item.ofRuns, Item.runs_append_gap, ih]
+
 theorem runsOf_flatten (l : List (Option Pt)) : (runsOf l).flatten = l.filterMap id := by
   induction l with
   | nil => rfl

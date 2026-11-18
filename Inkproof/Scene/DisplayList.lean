@@ -25,6 +25,92 @@ def Item.chain {α : Type} (single : α → Region) (join : α → α → Region
       | _ => False) ∨
     chain single join rest p
 
+/-- The pieces of a strip in order: `piece a` for each value, and `join a b` after it for each pair
+of adjacent values with no gap between them. -/
+def Item.fold {α β : Type} (piece : α → β) (join : α → α → β) : List (Item α) → List β
+  | [] => []
+  | .gap :: rest => fold piece join rest
+  | .val a :: rest =>
+    piece a :: (match rest with
+      | .val b :: _ => join a b :: fold piece join rest
+      | _ => fold piece join rest)
+
+/-- The runs of a strip: its values between gaps, in order. A gap ends a run, so a strip that
+ends in a value ends in a run without a gap after it. -/
+def Item.runs {α : Type} : List (Item α) → List (List α)
+  | [] => []
+  | .gap :: rest => [] :: runs rest
+  | .val a :: rest =>
+    match runs rest with
+    | [] => [[a]]
+    | r :: rs => (a :: r) :: rs
+
+theorem Item.fold_gap {α β : Type} (piece : α → β) (join : α → α → β) (rest : List (Item α)) :
+    Item.fold piece join (.gap :: rest) = Item.fold piece join rest := rfl
+
+/-- A value is followed by its join with the next value exactly when that next item is a value. -/
+theorem Item.fold_val_val {α β : Type} (piece : α → β) (join : α → α → β) (a b : α)
+    (rest : List (Item α)) :
+    Item.fold piece join (.val a :: .val b :: rest) =
+      piece a :: join a b :: Item.fold piece join (.val b :: rest) := rfl
+
+theorem Item.fold_val_gap {α β : Type} (piece : α → β) (join : α → α → β) (a : α)
+    (rest : List (Item α)) :
+    Item.fold piece join (.val a :: .gap :: rest) = piece a :: Item.fold piece join rest := rfl
+
+theorem Item.fold_val_nil {α β : Type} (piece : α → β) (join : α → α → β) (a : α) :
+    Item.fold piece join [.val a] = [piece a] := rfl
+
+/-- A gap separates the strip into independent parts: nothing is joined across it. -/
+theorem Item.fold_append_gap {α β : Type} (piece : α → β) (join : α → α → β) (r : List α)
+    (t : List (Item α)) :
+    Item.fold piece join (r.map Item.val ++ .gap :: t) =
+      Item.fold piece join (r.map Item.val) ++ Item.fold piece join t := by
+  cases r with
+  | nil => simp [Item.fold]
+  | cons a r =>
+    suffices ∀ a, Item.fold piece join (.val a :: (r.map Item.val ++ .gap :: t)) =
+        Item.fold piece join (.val a :: r.map Item.val) ++ Item.fold piece join t from this a
+    induction r with
+    | nil => intro a; simp [Item.fold]
+    | cons b r ih => intro a; simp only [List.map_cons, List.cons_append, Item.fold, ih]
+
+/-- The runs of a strip, flattened, are its values in order. -/
+theorem Item.runs_flatten {α : Type} (items : List (Item α)) :
+    (Item.runs items).flatten = items.filterMap fun | .val a => some a | .gap => none := by
+  induction items with
+  | nil => rfl
+  | cons i rest ih =>
+    cases i with
+    | gap => simpa [Item.runs] using ih
+    | val a =>
+      simp only [Item.runs]
+      cases hr : Item.runs rest with
+      | nil => rw [hr] at ih; simp_all
+      | cons r rs => rw [hr] at ih; simp_all
+
+/-- A gap ends a run: the values before it form one run, and the strip after it is split afresh. -/
+theorem Item.runs_append_gap {α : Type} (r : List α) (t : List (Item α)) :
+    Item.runs (r.map Item.val ++ .gap :: t) = r :: Item.runs t := by
+  induction r with
+  | nil => simp [Item.runs]
+  | cons a r ih => simp only [List.map_cons, List.cons_append, Item.runs] at ih ⊢; rw [ih]
+
+/-- `Item.chain` is the union of the pieces of the strip. -/
+theorem Item.chain_eq_fold {α : Type} (single : α → Region) (join : α → α → Region)
+    (items : List (Item α)) (p : Pt) :
+    Item.chain single join items p ↔ ∃ x ∈ Item.fold single join items, x p := by
+  induction items with
+  | nil => simp [Item.chain, Item.fold]
+  | cons i rest ih =>
+    cases i with
+    | gap => simpa [Item.chain, Item.fold] using ih
+    | val a =>
+      cases rest with
+      | nil => simp [Item.chain, Item.fold]
+      | cons j rest' =>
+        cases j <;> simp_all [Item.chain, Item.fold]
+
 /-- One column of a min/max envelope: the values `lo` and `hi` at `x`, in either order. -/
 structure Column where
   x : Rat

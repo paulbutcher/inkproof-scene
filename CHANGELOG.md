@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.9.0
+
+- `Item.fold` and `Item.runs` traverse a strip's pieces and joins and split it into runs at its gaps.
+
 ## v0.8.0
 
 - `compileEnvelope` draws per-column lowest and highest values as one envelope, with a gap at each absent column.
