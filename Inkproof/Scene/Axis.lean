@@ -166,6 +166,51 @@ theorem compileAxis_label {α : Type u} (side : Side) (r : Rect) (proj : α → 
       pl.text = l.2 ∧ side.along pl.anchor = proj l.1 ∧ pl.rotation = layout.rotation := by
   refine ⟨_, List.mem_map.2 ⟨l, h, rfl⟩, rfl, Side.along_pt .., rfl⟩
 
+/-- A point's coordinate across the axis. -/
+def Side.across (s : Side) (p : Pt) : Rat :=
+  if s.horizontal then p.y else p.x
+
+theorem Side.across_pt' (s : Side) (a c : Rat) : s.across (s.pt a c) = c := by
+  unfold Side.across Side.pt; split <;> rfl
+
+/-- The title of the axis of `side` of the plot `r`, centred along the axis. `extent` is how far the
+axis's tick labels reach beyond the plot's edge, as measured by the host; the title's anchor is
+`gap` beyond that, and the text extends away from the plot from it. A title beside a vertical axis
+is turned. -/
+def placeAxisTitle (side : Side) (r : Rect) (extent gap : Rat) (text : String) : PlacedLabel :=
+  let lo := if side.horizontal then r.x0 else r.y0
+  let hi := if side.horizontal then r.x1 else r.y1
+  ⟨text, side.pt ((lo + hi) / 2) (side.edge r + side.outward * (extent + gap)),
+    if side.horizontal then .horizontal else .vertical⟩
+
+/-- The title is centred along the axis. -/
+theorem placeAxisTitle_along (side : Side) (r : Rect) (extent gap : Rat) (text : String) :
+    side.along (placeAxisTitle side r extent gap text).anchor =
+      ((if side.horizontal then r.x0 else r.y0) + (if side.horizontal then r.x1 else r.y1)) / 2 :=
+  Side.along_pt ..
+
+/-- The title lies `extent + gap` beyond the plot's edge, measured away from the plot. -/
+theorem placeAxisTitle_across (side : Side) (r : Rect) (extent gap : Rat) (text : String) :
+    side.outward * (side.across (placeAxisTitle side r extent gap text).anchor - side.edge r) =
+      extent + gap := by
+  have h : side.outward * side.outward = 1 := by cases side <;> simp [Side.outward, Rat.mul_neg]
+  rw [placeAxisTitle, Side.across_pt']
+  have : side.edge r + side.outward * (extent + gap) - side.edge r = side.outward * (extent + gap) := by
+    rw [Rat.add_comm, Rat.add_sub_cancel]
+  rw [this, ← Rat.mul_assoc, h, Rat.one_mul]
+
+/-- With a non-negative extent and a positive gap, the title lies strictly outside the plot's edge
+and beyond the tick labels' extent. -/
+theorem placeAxisTitle_outside (side : Side) (r : Rect) {extent gap : Rat} (hx : 0 ≤ extent)
+    (hg : 0 < gap) (text : String) :
+    0 < side.outward * (side.across (placeAxisTitle side r extent gap text).anchor - side.edge r) ∧
+    extent < side.outward * (side.across (placeAxisTitle side r extent gap text).anchor - side.edge r) := by
+  rw [placeAxisTitle_across]
+  have h : extent < extent + gap := by
+    have := (Rat.add_lt_add_left (a := 0) (b := gap) (c := extent)).2 hg
+    rwa [Rat.add_zero] at this
+  exact ⟨Rat.not_le.mp fun h' => Rat.not_le.mpr h (Rat.le_trans h' hx), h⟩
+
 /-- What a scale axis needs besides its geometry: the locale tick labels are written in, roughly how
 many ticks to aim for, and the least gap between neighbouring labels. -/
 structure TickSpec where

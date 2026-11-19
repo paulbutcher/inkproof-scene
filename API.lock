@@ -237,7 +237,9 @@ constructor Inkproof.Scene.Shape.strip : Rat → List (Inkproof.Scene.Item Inkpr
 theorem Inkproof.Scene.Shape.strip_region_of_val : ∀ {hw : Rat} {items : List (Inkproof.Scene.Item Inkproof.Scene.Pt)} {a : Inkproof.Scene.Pt}, Inkproof.Scene.Item.val a ∈ items → (Inkproof.Scene.Shape.strip hw items).region a
 constructor Inkproof.Scene.Shape.text : Inkproof.Scene.Rect → String → Inkproof.Scene.Shape
 inductive Inkproof.Scene.Side : Type
+def Inkproof.Scene.Side.across : Inkproof.Scene.Side → Inkproof.Scene.Pt → Rat
 theorem Inkproof.Scene.Side.across_pt : ∀ (s : Inkproof.Scene.Side) (a c : Rat), (if s.horizontal = Bool.true then (s.pt a c).y else (s.pt a c).x) = c
+theorem Inkproof.Scene.Side.across_pt' : ∀ (s : Inkproof.Scene.Side) (a c : Rat), s.across (s.pt a c) = c
 def Inkproof.Scene.Side.along : Inkproof.Scene.Side → Inkproof.Scene.Pt → Rat
 theorem Inkproof.Scene.Side.along_pt : ∀ (s : Inkproof.Scene.Side) (a c : Rat), s.along (s.pt a c) = a
 constructor Inkproof.Scene.Side.bottom : Inkproof.Scene.Side
@@ -467,6 +469,10 @@ theorem Inkproof.Scene.pixelColor_covered : ∀ {dl : Inkproof.Scene.DisplayList
 theorem Inkproof.Scene.pixelColor_eq_paintOver : ∀ (dl : Inkproof.Scene.DisplayList) (bg : Inkproof.Scene.Color) (px : Inkproof.Scene.Pixel), Inkproof.Scene.pixelColor dl bg px = Inkproof.Scene.paintOver (fun c => c.shape.meetsB px.window) bg dl.paintOrder
 theorem Inkproof.Scene.pixelColor_of_covers : ∀ {dl : Inkproof.Scene.DisplayList} {bg : Inkproof.Scene.Color} {px : Inkproof.Scene.Pixel}, dl.Covers px → ∃ l1 c l2, dl.toList = l1 ++ c :: l2 ∧ c.Covers px ∧ Inkproof.Scene.pixelColor dl bg px = c.color ∧ (∀ (c' : Inkproof.Scene.Command), c' ∈ l1 → c'.Covers px → c'.layer ≤ c.layer) ∧ ∀ (c' : Inkproof.Scene.Command), c' ∈ l2 → c'.Covers px → c'.layer < c.layer
 theorem Inkproof.Scene.pixelColor_of_not_covers : ∀ {dl : Inkproof.Scene.DisplayList} {bg : Inkproof.Scene.Color} {px : Inkproof.Scene.Pixel}, ¬dl.Covers px → Inkproof.Scene.pixelColor dl bg px = bg
+def Inkproof.Scene.placeAxisTitle : Inkproof.Scene.Side → Inkproof.Scene.Rect → Rat → Rat → String → Inkproof.Scene.PlacedLabel
+theorem Inkproof.Scene.placeAxisTitle_across : ∀ (side : Inkproof.Scene.Side) (r : Inkproof.Scene.Rect) (extent gap : Rat) (text : String), side.outward * (side.across (Inkproof.Scene.placeAxisTitle side r extent gap text).anchor - side.edge r) = extent + gap
+theorem Inkproof.Scene.placeAxisTitle_along : ∀ (side : Inkproof.Scene.Side) (r : Inkproof.Scene.Rect) (extent gap : Rat) (text : String), side.along (Inkproof.Scene.placeAxisTitle side r extent gap text).anchor = ((if side.horizontal = Bool.true then r.x0 else r.y0) + if side.horizontal = Bool.true then r.x1 else r.y1) / 2
+theorem Inkproof.Scene.placeAxisTitle_outside : ∀ (side : Inkproof.Scene.Side) (r : Inkproof.Scene.Rect) {extent gap : Rat}, 0 ≤ extent → 0 < gap → ∀ (text : String), 0 < side.outward * (side.across (Inkproof.Scene.placeAxisTitle side r extent gap text).anchor - side.edge r) ∧ extent < side.outward * (side.across (Inkproof.Scene.placeAxisTitle side r extent gap text).anchor - side.edge r)
 def Inkproof.Scene.poly : List Inkproof.Scene.Pt → Inkproof.Scene.Region
 theorem Inkproof.Scene.poly_append : ∀ {A B : List Inkproof.Scene.Pt} {a b : Inkproof.Scene.Pt}, A.getLast? = Option.some a → B.head? = Option.some b → ∀ (p : Inkproof.Scene.Pt), Inkproof.Scene.poly (A ++ B) p ↔ Inkproof.Scene.poly A p ∨ Inkproof.Scene.Region.seg a b p ∨ Inkproof.Scene.poly B p
 theorem Inkproof.Scene.poly_cons_cons : ∀ (a b : Inkproof.Scene.Pt) (l : List Inkproof.Scene.Pt) (p : Inkproof.Scene.Pt), Inkproof.Scene.poly (a :: b :: l) p ↔ p = a ∨ Inkproof.Scene.Region.seg a b p ∨ Inkproof.Scene.poly (b :: l) p

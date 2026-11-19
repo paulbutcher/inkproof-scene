@@ -21,6 +21,7 @@ The display list for Inkproof charts, the compilers that produce it, and a refer
 - Rasterize a display list to an image, the reference for any other renderer: `render`, `pixelColor`, `Image`.
 - Draw an axis along a side of the plot: the axis line, a tick mark and optional gridline at each tick, and the labels Axis's `layoutLabels` keeps, placed for the host's text layer; any scale, since ticks are placed by a projection: `compileAxis`, `AxisStyle`, `Side`, `PlacedLabel`, `AxisDrawing`.
 - Draw an axis for a linear, log or categorical scale in one call, choosing ticks, formatting and thinning labels: `compileLinearAxis`, `compileLogAxis`, `compileCategoricalAxis` (ticks at band centres, `bandCentrePixel`), `TickSpec`; for a scale of unix seconds, with ticks at clock intervals and UTC time labels, `compileTimeAxis`; for ticks already in pixels, `compilePixelAxis`.
+- Place an axis title beside an axis, centred along it and clear of the tick labels, turned for a vertical axis: `placeAxisTitle`.
 - Pick colours, dash styles and markers for series in light and dark themes with checked contrast: `Theme`, `Theme.series`, `Theme.seriesStyle`, `Color.contrast`.
 
 ## Requiring it

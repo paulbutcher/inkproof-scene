@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.17.0
+
+- `placeAxisTitle` places an axis title centred along the axis, clear of its tick labels.
+
 ## v0.16.0
 
 - `compileTimeAxis` draws an axis for a scale of unix seconds, with ticks at clock intervals labelled in UTC.
