@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.15.0
+
+- `Join` draws a line or area with stepped or spline joins between points, never across a gap.
+
 ## v0.14.0
 
 - `compileScatterBy` draws a scatter with a marker radius computed from each value.
