@@ -10,6 +10,7 @@ import Inkproof.Scene.Line
 import Inkproof.Scene.Poly
 import Inkproof.Scene.Reduce
 import Inkproof.Scene.Compile
+import Inkproof.Scene.Axis
 
 import Inkproof.Scene.Meet
 import Inkproof.Scene.Rasterize

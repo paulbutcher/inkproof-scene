@@ -15,6 +15,7 @@ The display list for Inkproof charts, the compilers that produce it, and a refer
 - Find which commands paint a pixel, and in what order: `DisplayList.paintOrder`, `DisplayList.Covers`, `Command.Covers`, `winner`.
 - State exactly which pixels a shape covers (the raster model a GPU renderer must match): `Shape.region`, `Region`, `Region.Covers`, `Pixel`, `Window`, `Grid`.
 - Rasterize a display list to an image, the reference for any other renderer: `render`, `pixelColor`, `Image`.
+- Draw an axis along a side of the plot: the axis line, a tick mark and optional gridline at each tick, and the labels Axis's `layoutLabels` keeps, placed for the host's text layer; any scale, since ticks are placed by a projection: `compileAxis`, `AxisStyle`, `Side`, `PlacedLabel`, `AxisDrawing`.
 - Pick colours, dash styles and markers for series in light and dark themes with checked contrast: `Theme`, `Theme.series`, `Theme.seriesStyle`, `Color.contrast`.
 
 ## Requiring it
@@ -22,3 +23,15 @@ The display list for Inkproof charts, the compilers that produce it, and a refer
 ```lean
 require «inkproof-scene» from git "https://github.com/paulbutcher/inkproof-scene" @ "v0.9.0"
 ```
+
+## Drawing an axis
+
+```lean
+-- ticks placed in pixels along the axis; layoutLabels decides which labels to keep and how to turn them
+let ticks := pixelTicks.map (·.1)
+let layout := Inkproof.Axis.layoutLabels measure 4 pixelTicks
+let axis := compileAxis .bottom plot toPlane style ticks layout
+-- axis.display is a DisplayList; axis.labels give each label's text, anchor and rotation
+```
+
+`toPlane` maps a tick's position to its plane coordinate; items of `layout` are `(position, text)`, so ticks of a log scale or band centres work the same way.

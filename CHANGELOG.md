@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.10.0
+
+- `compileAxis` draws an axis line, tick marks and gridlines and places the labels Axis keeps, on any side of the plot.
+
 ## v0.9.0
 
 - `Item.fold` and `Item.runs` traverse a strip's pieces and joins and split it into runs at its gaps.
