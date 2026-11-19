@@ -1,9 +1,12 @@
 # Changelog
 
+## v0.14.0
+
+- `compileScatterBy` draws a scatter with a marker radius computed from each value.
+
 ## v0.13.0
 
 - `LineStyle.dash` draws a line dashed or dotted with a `DashPattern` in grid units, and `Dash.pattern` gives the pattern for a series theme's dash.
-- `compileScatterBy` draws a scatter with a marker radius computed from each value.
 
 ## v0.12.1
 
