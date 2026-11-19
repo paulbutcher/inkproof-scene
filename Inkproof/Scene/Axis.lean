@@ -7,6 +7,7 @@ import Inkproof.Axis.LabelLayout
 import Inkproof.Axis.Scales
 import Inkproof.Axis.Ticks
 import Inkproof.Axis.TickLabels
+import Inkproof.Axis.TimeLabel
 import Inkproof.Scale.Categorical
 import Inkproof.Scale.Linear
 import Inkproof.Scale.Log
@@ -230,6 +231,27 @@ theorem compileLogAxis_tick (side : Side) (r : Rect) (s : Inkproof.Scale.Log Flo
     (ht : t ∈ Inkproof.Axis.logScaleTicks s spec.target)
     (hq : Inkproof.Float.Float.toRat (s.map Float.log t) = some q) :
     ∃ c ∈ (compileLogAxis side r s spec measure st).display, ∃ a b,
+      c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
+      side.along a = q ∧ side.along b = q :=
+  compilePixelAxis_tick _ _ _ _ _ _ _ (List.mem_map.2 ⟨t, ht, rfl⟩) hq
+
+/-- An axis for a linear scale of seconds since 1970-01-01T00:00:00 UTC: ticks at the clock intervals
+`durationScaleTicks` chooses, labelled in UTC with `months` as the month names. `spec.locale` is not
+used. -/
+def compileTimeAxis (side : Side) (r : Rect) (s : Inkproof.Scale.Linear Float) (spec : TickSpec)
+    (months : List String) (measure : String → Float × Float) (st : AxisStyle) : AxisDrawing :=
+  let ts := Inkproof.Axis.durationScaleTicks s spec.target
+  let step := Inkproof.Axis.durationStep (s.domainEnd - s.domainStart).abs spec.target
+  compilePixelAxis side r st measure spec.labelGap (ts.map s.map)
+    (Inkproof.Axis.timeTickLabels months step ts)
+
+/-- Every tick of a time scale whose pixel is finite has a tick mark at the scale's own projection
+of it. -/
+theorem compileTimeAxis_tick (side : Side) (r : Rect) (s : Inkproof.Scale.Linear Float)
+    (spec : TickSpec) (months : List String) (measure : String → Float × Float) (st : AxisStyle)
+    {t : Float} {q : Rat} (ht : t ∈ Inkproof.Axis.durationScaleTicks s spec.target)
+    (hq : Inkproof.Float.Float.toRat (s.map t) = some q) :
+    ∃ c ∈ (compileTimeAxis side r s spec months measure st).display, ∃ a b,
       c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
       side.along a = q ∧ side.along b = q :=
   compilePixelAxis_tick _ _ _ _ _ _ _ (List.mem_map.2 ⟨t, ht, rfl⟩) hq

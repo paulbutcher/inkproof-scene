@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.16.0
+
+- `compileTimeAxis` draws an axis for a scale of unix seconds, with ticks at clock intervals labelled in UTC.
+
 ## v0.15.0
 
 - `Join` draws a line or area with stepped or spline joins between points, never across a gap.

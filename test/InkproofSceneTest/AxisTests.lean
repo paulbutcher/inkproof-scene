@@ -42,6 +42,26 @@ def categoricalAxis : TestCase := .mk "a categorical axis labels each band at it
   for (l, i) in d.labels.zip [0, 1, 2, 3] do
     check (l.anchor.x == (Inkproof.Float.Float.toRat (bandCentrePixel s i)).getD 0) "label off its band centre"
 
-def tests : List TestCase := [descendingLinear, logAxis, categoricalAxis]
+def months : List String :=
+  ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+def timeAxisClock : TestCase := .mk "a time axis over hours labels ticks as clock times" <|
+  forAll 50 (fun g => let (a, g) := g.below 1000000; (a, g)) fun a => do
+    let lo := (a * 3600).toFloat
+    let s : Inkproof.Scale.Linear Float := ⟨lo, lo + 6 * 3600, 10, 210⟩
+    let d := compileTimeAxis .bottom plot s spec months measure style
+    check (!d.labels.isEmpty) "no labels"
+    for l in d.labels do
+      check (l.text.contains ':' || months.any (l.text.startsWith ·)) s!"not a time: {l.text}"
+
+def timeAxisMonths : TestCase := .mk "a time axis over a year names months" <| do
+  let s : Inkproof.Scale.Linear Float := ⟨0, 365 * 86400, 10, 210⟩
+  let d := compileTimeAxis .bottom plot s spec months measure style
+  check (!d.labels.isEmpty) "no labels"
+  for l in d.labels do
+    check (months.any (l.text.startsWith ·)) s!"not a month: {l.text}"
+
+def tests : List TestCase :=
+  [descendingLinear, logAxis, categoricalAxis, timeAxisClock, timeAxisMonths]
 
 end InkproofSceneTest.AxisTests
