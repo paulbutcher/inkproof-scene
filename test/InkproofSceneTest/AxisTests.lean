@@ -35,6 +35,13 @@ def logAxis : TestCase := .mk "a log axis puts a mark for each decade" <|
   let d := compileLogAxis .bottom plot s spec measure style
   check (d.labels.map (·.text) == ["1", "10", "100", "1,000"]) "labels differ"
 
-def tests : List TestCase := [descendingLinear, logAxis]
+def categoricalAxis : TestCase := .mk "a categorical axis labels each band at its centre" <| do
+  let s : Inkproof.Scale.Categorical String Float := ⟨#["a", "b", "c", "d"], 10, 210⟩
+  let d := compileCategoricalAxis .bottom plot s id 6 4 measure style
+  check (d.labels.map (·.text) == ["a", "b", "c", "d"]) "labels differ"
+  for (l, i) in d.labels.zip [0, 1, 2, 3] do
+    check (l.anchor.x == (Inkproof.Float.Float.toRat (bandCentrePixel s i)).getD 0) "label off its band centre"
+
+def tests : List TestCase := [descendingLinear, logAxis, categoricalAxis]
 
 end InkproofSceneTest.AxisTests

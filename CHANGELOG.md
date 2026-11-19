@@ -7,6 +7,7 @@
 ## v0.11.0
 
 - `compileEnvelopeOfExtents` draws an envelope straight from a pyramid's per-column `Minimum` and `Maximum`.
+- `compileLinearAxis`, `compileLogAxis` and `compileCategoricalAxis` draw an axis for a scale in one call, on any side.
 
 ## v0.10.0
 

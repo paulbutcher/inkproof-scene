@@ -5,7 +5,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 import Inkproof.Axis.Layout
 import Inkproof.Axis.LabelLayout
 import Inkproof.Axis.Scales
+import Inkproof.Axis.Ticks
 import Inkproof.Axis.TickLabels
+import Inkproof.Scale.Categorical
 import Inkproof.Scale.Linear
 import Inkproof.Scale.Log
 import Inkproof.Float.FloatValue
@@ -231,5 +233,38 @@ theorem compileLogAxis_tick (side : Side) (r : Rect) (s : Inkproof.Scale.Log Flo
       c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
       side.along a = q ∧ side.along b = q :=
   compilePixelAxis_tick _ _ _ _ _ _ _ (List.mem_map.2 ⟨t, ht, rfl⟩) hq
+
+/-- The pixel at the centre of band `i` of a categorical scale. -/
+def bandCentrePixel {κ : Type u} (s : Inkproof.Scale.Categorical κ Float) (i : Nat) : Float :=
+  letI : NatCast Float := ⟨Nat.toFloat⟩
+  s.bandCentre i
+
+/-- The pixel at the centre of band `i` is its start plus half the bandwidth. -/
+theorem bandCentrePixel_eq {κ : Type u} (s : Inkproof.Scale.Categorical κ Float) (i : Nat) :
+    letI : NatCast Float := ⟨Nat.toFloat⟩
+    bandCentrePixel s i = s.bandStart i + s.bandwidth / 2 :=
+  rfl
+
+/-- An axis for a categorical scale: a tick at the centre of each band `categoricalIndices` selects,
+labelled by `name`. -/
+def compileCategoricalAxis {κ : Type u} (side : Side) (r : Rect) (s : Inkproof.Scale.Categorical κ Float)
+    (name : κ → String) (target : Nat) (labelGap : Float) (measure : String → Float × Float)
+    (st : AxisStyle) : AxisDrawing :=
+  let is := (Inkproof.Axis.categoricalIndices s.categories.size 0 s.categories.size.toFloat target).filter
+    (· < s.categories.size)
+  compilePixelAxis side r st measure labelGap (is.map (bandCentrePixel s))
+    (is.filterMap fun i => (s.categories[i]?).map name)
+
+/-- Every band selected for labelling whose centre is finite has a tick mark at that centre. -/
+theorem compileCategoricalAxis_tick {κ : Type u} (side : Side) (r : Rect)
+    (s : Inkproof.Scale.Categorical κ Float) (name : κ → String) (target : Nat) (labelGap : Float)
+    (measure : String → Float × Float) (st : AxisStyle) {i : Nat} {q : Rat}
+    (hi : i ∈ (Inkproof.Axis.categoricalIndices s.categories.size 0 s.categories.size.toFloat
+      target).filter (· < s.categories.size))
+    (hq : Inkproof.Float.Float.toRat (bandCentrePixel s i) = some q) :
+    ∃ c ∈ (compileCategoricalAxis side r s name target labelGap measure st).display, ∃ a b,
+      c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
+      side.along a = q ∧ side.along b = q :=
+  compilePixelAxis_tick _ _ _ _ _ _ _ (List.mem_map.2 ⟨i, hi, rfl⟩) hq
 
 end Inkproof.Scene
