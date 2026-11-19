@@ -5,6 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 import Inkproof.Core.Segmented
 import Inkproof.Scale.Linear
 import Inkproof.Scene.Dash
+import Inkproof.Scene.Join
 import Inkproof.Scene.Reduce
 
 namespace Inkproof.Scene
@@ -218,12 +219,13 @@ structure Paint where
 /-- A line chart's style. `reduce` aggregates each run to the first, last, lowest and highest value
 of each pixel column class, which draws the same pixels as the full data for a bare line
 (`compileLine_covers_iff`); a thick line is not covered by that guarantee. A `dash` cuts each run,
-after reducing, into dashes (`dashRun`), each within the undashed line; `none` is solid. -/
+after joining and reducing, into dashes (`dashRun`), each within the undashed line; `none` is solid. -/
 structure LineStyle where
   paint : Paint
   halfWidth : Rat
   reduce : Bool
   dash : Option DashPattern := none
+  join : Join := .straight
 
 /-- The runs cut into dashes, or as they are when there is no pattern. -/
 def dashRuns : Option DashPattern → List (List Pt) → List (List Pt)
@@ -238,7 +240,7 @@ theorem dashRuns_some (d : DashPattern) (runs : List (List Pt)) :
 /-- A line chart: one strip, broken at every gap and missing value. -/
 def compileLine {α : Type u} {β : Type v} [LE α] (st : LineStyle) (proj : Projection α β)
     (g : Segmented α β) : DisplayList :=
-  let runs := proj.runs g
+  let runs := joinRuns st.join (proj.runs g)
   let runs := if st.reduce then runs.map reducePoints else runs
   let runs := dashRuns st.dash runs
   #[⟨st.paint.layer, st.paint.color,
@@ -247,8 +249,8 @@ def compileLine {α : Type u} {β : Type v} [LE α] (st : LineStyle) (proj : Pro
 /-- An area chart: the area between the series and the line at `baseline`, broken at every gap and
 missing value. -/
 def compileArea {α : Type u} {β : Type v} [LE α] (paint : Paint) (baseline : β)
-    (proj : Projection α β) (g : Segmented α β) : DisplayList :=
-  #[⟨paint.layer, paint.color, .area (proj.y baseline) (Item.ofRuns (proj.runs g))⟩]
+    (proj : Projection α β) (g : Segmented α β) (join : Join := .straight) : DisplayList :=
+  #[⟨paint.layer, paint.color, .area (proj.y baseline) (Item.ofRuns (joinRuns join (proj.runs g)))⟩]
 
 /-- The items of an envelope over per-column extents, `none` being an absent column: the present
 columns, with one gap in place of each stretch of absent columns after a present one. The flag is
@@ -406,12 +408,13 @@ theorem compileLine_covers_iff (st : LineStyle) (hw : st.halfWidth = 0) (hd : st
     (compileLine st proj g).Covers px ↔
       (compileLine { st with reduce := false } proj g).Covers px := by
   have key : ∀ b : Bool, (compileLine { st with reduce := b } proj g).Covers px ↔
-      ∃ r ∈ (if b then (proj.runs g).map reducePoints else proj.runs g),
-        (poly r).Covers px := by
+      ∃ r ∈ (if b then (joinRuns st.join (proj.runs g)).map reducePoints
+        else joinRuns st.join (proj.runs g)), (poly r).Covers px := by
     intro b
     rw [compileLine, covers_singleton]
     rw [← Command.Covers, strip_covers_runs
-      (hw := st.halfWidth) (rs := if b then (proj.runs g).map reducePoints else proj.runs g)
+      (hw := st.halfWidth) (rs := if b then (joinRuns st.join (proj.runs g)).map reducePoints
+        else joinRuns st.join (proj.runs g))
       (by simp [hd, dashRuns])]
     simp only [hw]
     exact ⟨fun ⟨r, hr, h⟩ => ⟨r, hr, Region.covers_congr (Region.thicken_zero _) px |>.mp h⟩,
@@ -433,13 +436,13 @@ theorem compileLine_covers_iff (st : LineStyle) (hw : st.halfWidth = 0) (hd : st
 series is a projected present point, or lies on the segment between two projected present points
 that are adjacent in one segment, with no break and no missing value between them. -/
 theorem compileLine_no_bridge (st : LineStyle) (hw : st.halfWidth = 0) (hr : st.reduce = false)
-    (hd : st.dash = none) (proj : Projection α β) (g : Segmented α β) {c : Command}
-    (hc : c ∈ compileLine st proj g) {p : Pt} (h : c.shape.region p) :
+    (hd : st.dash = none) (hj : st.join = .straight) (proj : Projection α β) (g : Segmented α β)
+    {c : Command} (hc : c ∈ compileLine st proj g) {p : Pt} (h : c.shape.region p) :
     ∃ s ∈ g.segments.toList, some p ∈ proj.points s ∨
       ∃ a b, [some a, some b] <:+: proj.points s ∧ Region.seg a b p := by
   have hcmd : c = ⟨st.paint.layer, st.paint.color,
       .strip st.halfWidth (Item.ofRuns (proj.runs g))⟩ := by
-    simpa [compileLine, hr, hd, dashRuns] using hc
+    simpa [compileLine, hr, hd, hj, dashRuns, joinRuns_straight] using hc
   subst hcmd
   simp only [Shape.region, hw, Region.thicken_zero, Item.chain_ofRuns] at h
   obtain ⟨r, hrun, hp⟩ := h
@@ -458,7 +461,7 @@ theorem compileLine_dash_sub (st : LineStyle) (proj : Projection α β) (g : Seg
     ∃ c' ∈ compileLine { st with dash := none } proj g, c'.shape.region p := by
   refine ⟨_, Array.mem_singleton.mpr rfl, ?_⟩
   have hcmd : c = ⟨st.paint.layer, st.paint.color, .strip st.halfWidth (Item.ofRuns
-      (dashRuns st.dash (if st.reduce then (proj.runs g).map reducePoints else proj.runs g)))⟩ := by
+      (dashRuns st.dash (if st.reduce then (joinRuns st.join (proj.runs g)).map reducePoints else joinRuns st.join (proj.runs g))))⟩ := by
     simpa [compileLine] using hc
   subst hcmd
   simp only [Shape.region, Region.thicken, Item.chain_ofRuns] at h ⊢
@@ -473,16 +476,33 @@ theorem compileLine_dash_sub (st : LineStyle) (proj : Projection α β) (g : Seg
     obtain ⟨l, hl, hrl⟩ := List.mem_flatMap.mp hr
     exact ⟨l, by simpa [dashRuns] using hl, dashRun_sub _ _ hrl q hq⟩
 
+/-- Whatever the join, a bare unreduced undashed line draws only along the joined runs, each run
+joined on its own. -/
+theorem compileLine_join_runs (st : LineStyle) (hw : st.halfWidth = 0) (hr : st.reduce = false)
+    (hd : st.dash = none) (proj : Projection α β) (g : Segmented α β) {c : Command}
+    (hc : c ∈ compileLine st proj g) {p : Pt} (h : c.shape.region p) :
+    ∃ r ∈ proj.runs g, poly (joinRun st.join r) p := by
+  have hcmd : c = ⟨st.paint.layer, st.paint.color,
+      .strip st.halfWidth (Item.ofRuns (joinRuns st.join (proj.runs g)))⟩ := by
+    simpa [compileLine, hr, hd, dashRuns] using hc
+  subst hcmd
+  simp only [Shape.region, hw, Region.thicken_zero, Item.chain_ofRuns] at h
+  obtain ⟨r, hrun, hp⟩ := h
+  obtain ⟨r0, hr0, rfl⟩ := List.mem_map.mp hrun
+  exact ⟨r0, hr0, hp⟩
+
 /-- An area chart's runs are filled separately, as a strip's are. -/
 theorem compileArea_no_bridge (paint : Paint) (baseline : β) (proj : Projection α β)
-    (g : Segmented α β) {c : Command} (hc : c ∈ compileArea paint baseline proj g) {p : Pt}
-    (h : c.shape.region p) :
-    ∃ r ∈ proj.runs g, (Shape.area (proj.y baseline) (r.map Item.val)).region p := by
+    (g : Segmented α β) (join : Join) {c : Command}
+    (hc : c ∈ compileArea paint baseline proj g join) {p : Pt} (h : c.shape.region p) :
+    ∃ r ∈ proj.runs g, (Shape.area (proj.y baseline) ((joinRun join r).map Item.val)).region p := by
   have hcmd : c = ⟨paint.layer, paint.color,
-      .area (proj.y baseline) (Item.ofRuns (proj.runs g))⟩ := by
+      .area (proj.y baseline) (Item.ofRuns (joinRuns join (proj.runs g)))⟩ := by
     simpa [compileArea] using hc
   subst hcmd
-  exact (Item.chain_ofRuns _ _).mp h
+  obtain ⟨r, hr, hp⟩ := (Item.chain_ofRuns _ _).mp h
+  obtain ⟨r0, hr0, rfl⟩ := List.mem_map.mp hr
+  exact ⟨r0, hr0, hp⟩
 
 theorem mem_compileBars (st : BarStyle) (baseline : β) (proj : Projection α β) (s : Series α β)
     (c : Command) :

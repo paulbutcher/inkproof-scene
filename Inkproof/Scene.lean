@@ -9,6 +9,7 @@ import Inkproof.Scene.Clip
 import Inkproof.Scene.Line
 import Inkproof.Scene.Poly
 import Inkproof.Scene.Reduce
+import Inkproof.Scene.Join
 import Inkproof.Scene.Compile
 import Inkproof.Scene.Axis
 

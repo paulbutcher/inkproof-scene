@@ -98,6 +98,14 @@ def millionPointsCompile : TestCase := .mk "compilers handle a million points" <
         | _ => 0
       | none => 0
     check (items != 0) "line has no items"
+    let gaps (j : Join) : Nat := match (compileLine { paint, halfWidth := 1, reduce := false, join := j } proj g)[0]? with
+      | some c => match c.shape with
+        | .strip _ is => (is.filter fun | .gap => true | _ => false).length
+        | _ => 0
+      | none => 0
+    check (gaps .stepAfter == gaps .straight && gaps (.spline 3) == gaps .straight)
+      "a join changed where the line breaks"
+    check ((compileArea paint 0 proj g (.spline 2)).size == 1) "joined area did not compile"
 
 def tests : List TestCase :=
   [reductionKeepsWhatMatters, spikeSurvives, scatterOnePerSample, scatterByRadiusPerValue, dashesStayWithinPattern,
