@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.11.0
+
+- `compileEnvelopeOfExtents` draws an envelope straight from a pyramid's per-column `Minimum` and `Maximum`.
+
 ## v0.10.0
 
 - `compileAxis` draws an axis line, tick marks and gridlines and places the labels Axis keeps, on any side of the plot.

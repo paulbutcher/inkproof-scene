@@ -10,7 +10,7 @@ namespace Inkproof.Scene
 
 open Inkproof.Core Inkproof.Scale
 
-universe u v
+universe u v w
 
 /-- How data coordinates become grid coordinates. A chart's scales fix it; `Projection.linear` is
 the one made of two linear scales. -/
@@ -225,6 +225,17 @@ column is not drawn, and the columns on either side of it are not joined. -/
 def compileEnvelope {β : Type v} (paint : Paint) (proj : Projection Nat β)
     (cols : Array (Option (β × β))) : DisplayList :=
   #[⟨paint.layer, paint.color, .envelope (envelopeItems true (envelopeColumns proj cols))⟩]
+
+/-- The extents of Core's `Pyramid.columns` over `Minimum β × Maximum β` as envelope columns: a
+column with no samples is absent. -/
+def extentColumns {β : Type v} [LE β] [DecidableLE β] (cols : Array (Minimum β × Maximum β)) :
+    Array (Option (β × β)) :=
+  cols.map fun (mn, mx) => do pure (← mn.get, ← mx.get)
+
+/-- An envelope chart drawn straight from per-column extents. -/
+def compileEnvelopeOfExtents {β : Type v} [LE β] [DecidableLE β] (paint : Paint)
+    (proj : Projection Nat β) (cols : Array (Minimum β × Maximum β)) : DisplayList :=
+  compileEnvelope paint proj (extentColumns cols)
 
 /-- A bar chart's style: `width` is the bar width in grid units. -/
 structure BarStyle where
@@ -506,6 +517,46 @@ theorem compileEnvelope_covers {β : Type v} (paint : Paint) (proj : Projection 
   refine Item.single_sub_chain hm _ ⟨0, by grind, by grind, by grind, ?_⟩
   simp [Between]
   grind
+
+/-- A column is absent exactly when it has no lowest or no highest value. -/
+theorem extentColumns_getElem? {β : Type v} [LE β] [DecidableLE β]
+    (cols : Array (Minimum β × Maximum β)) (i : Nat) {lo hi : β} :
+    (extentColumns cols)[i]? = some (some (lo, hi)) ↔
+      ∃ mn mx, cols[i]? = some (mn, mx) ∧ mn.get = some lo ∧ mx.get = some hi := by
+  simp only [extentColumns, Array.getElem?_map]
+  cases h : cols[i]? with
+  | none => simp
+  | some c =>
+    obtain ⟨⟨a⟩, ⟨b⟩⟩ := c
+    cases a <;> cases b <;> simp [Option.bind] <;> grind
+
+/-- Drawing from extents is drawing the columns `extentColumns` reads from them. -/
+theorem compileEnvelopeOfExtents_eq {β : Type v} [LE β] [DecidableLE β] (paint : Paint)
+    (proj : Projection Nat β) (cols : Array (Minimum β × Maximum β)) :
+    compileEnvelopeOfExtents paint proj cols = compileEnvelope paint proj (extentColumns cols) :=
+  rfl
+
+/-- A column with both extremes is drawn: a pixel containing the projected lowest value is covered. -/
+theorem compileEnvelopeOfExtents_covers {β : Type v} [LE β] [DecidableLE β] (paint : Paint)
+    (proj : Projection Nat β) (cols : Array (Minimum β × Maximum β)) {i : Nat} {mn : Minimum β}
+    {mx : Maximum β} {lo hi : β} (h : cols[i]? = some (mn, mx)) (hl : mn.get = some lo)
+    (hh : mx.get = some hi) {px : Pixel} (hc : px.Contains ⟨proj.x i, proj.y lo⟩) :
+    (compileEnvelopeOfExtents paint proj cols).Covers px :=
+  compileEnvelope_covers paint proj _ ((extentColumns_getElem? cols i).mpr ⟨mn, mx, h, hl, hh⟩) hc
+
+/-- No sample lies outside the drawn column: when column `i` aggregates the samples `xs`, each
+sample's value is between the extents drawn for it. -/
+theorem extentColumns_bounds {γ : Type w} {β : Type v} [LE β] [DecidableLE β] [Std.IsLinearOrder β]
+    (lo : γ → Minimum β) (up : γ → Maximum β) (xs : Array γ)
+    (cols : Array (Minimum β × Maximum β)) {i : Nat}
+    (hi' : cols[i]? = some (Aggregate.fold lo xs, Aggregate.fold up xs)) {l h : β}
+    (hc : (extentColumns cols)[i]? = some (some (l, h))) {x : γ} (hx : x ∈ xs) :
+    (∀ b, (lo x).get = some b → l ≤ b) ∧ (∀ b, (up x).get = some b → b ≤ h) := by
+  obtain ⟨mn, mx, hm, hl, hh⟩ := (extentColumns_getElem? cols i).mp hc
+  rw [hi'] at hm
+  obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hm)
+  exact ⟨fun b hb => ((Minimum.fold_get_eq_some lo xs l).mp hl).2 x hx b hb,
+    fun b hb => ((Maximum.fold_get_eq_some up xs h).mp hh).2 x hx b hb⟩
 
 end Theorems
 
