@@ -9,7 +9,7 @@ namespace InkproofSceneTest.AxisTests
 
 open InkproofTools.Test Inkproof.Scene Inkproof.Core
 
-def paint : Paint := ⟨0, ⟨0, 0, 0, 255⟩⟩
+def paint : Paint := ⟨0, Color.mk 0 0 0 255⟩
 
 def style : AxisStyle := ⟨paint, 1/2, paint, 1/2, 4, some (paint, 1/4), 2⟩
 

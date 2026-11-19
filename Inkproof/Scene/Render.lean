@@ -109,11 +109,11 @@ structure Image where
   pixels : Array Color
   size_eq : pixels.size = width * height
 
-/-- The colour a pixel ends up with: that of the command on top there, or `bg` when no command
-covers it. A covering command replaces the colour outright; blending is not part of the model. -/
+/-- The colour a pixel ends up with: the one the command on top there gives it, or `bg` when no
+command covers it. A covering command replaces the colour outright; blending is not part of the model. -/
 def pixelColor (dl : DisplayList) (bg : Color) (px : Pixel) : Color :=
   match winner (fun c => c.shape.meetsB px.window) dl.toList with
-  | some c => c.color
+  | some c => c.colorAt px
   | none => bg
 
 /-- Render the display list on the grid, starting from `bg`. -/
@@ -160,7 +160,7 @@ theorem pixelColor_of_not_covers {dl : DisplayList} {bg : Color} {px : Pixel}
     exact absurd ⟨c, Array.mem_toList_iff.1 (by rw [e]; simp), (Command.meetsB_iff c px).1 hc⟩ h
 
 theorem pixelColor_of_covers {dl : DisplayList} {bg : Color} {px : Pixel} (h : dl.Covers px) :
-    ∃ l1 c l2, dl.toList = l1 ++ c :: l2 ∧ c.Covers px ∧ pixelColor dl bg px = c.color ∧
+    ∃ l1 c l2, dl.toList = l1 ++ c :: l2 ∧ c.Covers px ∧ pixelColor dl bg px = c.colorAt px ∧
       (∀ c' ∈ l1, c'.Covers px → c'.layer ≤ c.layer) ∧
       (∀ c' ∈ l2, c'.Covers px → c'.layer < c.layer) := by
   obtain ⟨c0, hc0, hcov⟩ := h
@@ -176,11 +176,11 @@ theorem pixelColor_of_covers {dl : DisplayList} {bg : Color} {px : Pixel} (h : d
     · exact h1 c' hc' ((Command.meetsB_iff c' px).2 hk)
     · exact h2 c' hc' ((Command.meetsB_iff c' px).2 hk)
 
-/-- Every pixel covered by a command shows the colour of a covering command on that command's layer
-or above. -/
+/-- Every pixel covered by a command shows the colour given by a covering command on that command's
+layer or above. -/
 theorem pixelColor_covered {dl : DisplayList} {bg : Color} {px : Pixel} {c : Command}
     (hc : c ∈ dl) (h : c.Covers px) :
-    ∃ c' ∈ dl, c'.Covers px ∧ pixelColor dl bg px = c'.color ∧ c.layer ≤ c'.layer := by
+    ∃ c' ∈ dl, c'.Covers px ∧ pixelColor dl bg px = c'.colorAt px ∧ c.layer ≤ c'.layer := by
   obtain ⟨l1, c', l2, e, hc', hcol, h1, h2⟩ := pixelColor_of_covers (bg := bg) (px := px) ⟨c, hc, h⟩
   have hm : c ∈ l1 ++ c' :: l2 := by rw [← e]; exact Array.mem_toList_iff.2 hc
   refine ⟨c', Array.mem_toList_iff.1 (by rw [e]; simp), hc', hcol, ?_⟩
@@ -195,7 +195,7 @@ lies in, whatever the half-width, even zero. -/
 theorem render_spike {dl : DisplayList} {bg : Color} {c : Command} (hc : c ∈ dl) {hw : Rat}
     {items : List (Item Pt)} (hs : c.shape = .strip hw items) {a : Pt} (ha : Item.val a ∈ items)
     {px : Pixel} (hp : px.Contains a) :
-    ∃ c' ∈ dl, c'.Covers px ∧ pixelColor dl bg px = c'.color ∧ c.layer ≤ c'.layer :=
+    ∃ c' ∈ dl, c'.Covers px ∧ pixelColor dl bg px = c'.colorAt px ∧ c.layer ≤ c'.layer :=
   pixelColor_covered hc (Command.covers_of_mem (by rw [hs]; exact Shape.strip_region_of_val ha) hp)
 
 end Inkproof.Scene

@@ -87,6 +87,19 @@ def renderTests : List TestCase := [
       check ((List.range 6).all fun row => (List.range 8).all fun col =>
         at' img col row == bg || at' img col row == red) "pixel is neither background nor colour",
 
+  .mk "a vertical gradient is flat across each row and blends between its end colours" do
+    let top : Color := ⟨255, 0, 0, 255⟩
+    let bottom : Color := ⟨0, 0, 255, 255⟩
+    let grad : Shading := .gradient .y ⟨1, top⟩ [⟨5, bottom⟩]
+    let img := draw [⟨0, grad, .rect ⟨0, 0, 8, 6⟩⟩]
+    check ((List.range 6).all fun row => (List.range 8).all fun col =>
+      at' img col row == at' img 0 row)
+      "colour varies along x" *>
+    check (at' img 0 0 == top && at' img 0 5 == bottom) "ends are not the stop colours" *>
+    check ((List.range 4).all fun row =>
+      (at' img 0 (row + 1)).r ≥ (at' img 0 (row + 2)).r &&
+      (at' img 0 (row + 1)).b ≤ (at' img 0 (row + 2)).b) "red does not fall as blue rises",
+
   .mk "a clipped command paints nothing outside its scissor" <|
     forAll 100 (fun g => let (a, g) := genPt g; let (b, g) := genPt g; ((a, b), g)) fun (a, b) =>
       let img := draw [cmd 0 red (.clipped ⟨2, 1, 5, 4⟩ (.strip 1 [.val a, .val b]))]

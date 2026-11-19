@@ -48,7 +48,7 @@ def scatterOnePerSample : TestCase := .mk "scatter has one marker per present va
     let vals := pts.toArray.mapIdx fun i p => (p.x, if i % 3 == 0 then none else some p.y)
     let s := Series.ofUnsorted vals
     let proj : Projection Rat Rat := ⟨id, id⟩
-    let dl := compileScatter ⟨⟨0, ⟨0, 0, 0, 255⟩⟩, .circle, 1⟩ proj s
+    let dl := compileScatter ⟨⟨0, Color.mk 0 0 0 255⟩, .circle, 1⟩ proj s
     check (dl.size == (vals.filter fun v => v.2.isSome).size) "marker count differs from present values"
 
 def scatterByRadiusPerValue : TestCase := .mk "scatterBy draws each marker at the radius of its value" <|
@@ -56,7 +56,7 @@ def scatterByRadiusPerValue : TestCase := .mk "scatterBy draws each marker at th
     let s := Series.ofUnsorted (pts.toArray.map fun p => (p.x, some p.y))
     let proj : Projection Rat Rat := ⟨id, id⟩
     let r := fun (y : Rat) => y.abs
-    for c in compileScatterBy ⟨⟨0, ⟨0, 0, 0, 255⟩⟩, .circle, 1⟩ r proj s do
+    for c in compileScatterBy ⟨⟨0, Color.mk 0 0 0 255⟩, .circle, 1⟩ r proj s do
       match c.shape with
       | .marker _ p rad => check (rad == r p.y) "radius differs from the value's"
       | _ => check false "not a marker"
@@ -86,7 +86,7 @@ def millionPointsCompile : TestCase := .mk "compilers handle a million points" <
   | .error _ => .error "series rejected"
   | .ok s => do
     let proj : Projection Nat Rat := ⟨fun x => (x : Rat) / 1000, id⟩
-    let paint : Paint := ⟨0, ⟨0, 0, 0, 255⟩⟩
+    let paint : Paint := ⟨0, Color.mk 0 0 0 255⟩
     let g := Segmented.single s
     let line := compileLine { paint, halfWidth := 1, reduce := true } proj g
     let area := compileArea paint 0 proj g

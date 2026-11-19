@@ -3,6 +3,7 @@ Copyright (c) 2026 Paul Butcher. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
 import Inkproof.Scene.Raster
+import Inkproof.Scene.Shading
 
 namespace Inkproof.Scene
 
@@ -133,14 +134,6 @@ inductive MarkerShape where
   | circle
   deriving DecidableEq, Repr
 
-/-- A colour, as 8-bit red, green, blue and alpha. -/
-structure Color where
-  r : UInt8
-  g : UInt8
-  b : UInt8
-  a : UInt8
-  deriving DecidableEq, Repr
-
 /-- What a command draws, and where, in grid coordinates. -/
 inductive Shape where
   /-- The polyline through the values, thickened by `halfWidth` (zero is the bare polyline). A value
@@ -160,10 +153,10 @@ inductive Shape where
   deriving Repr
 
 /-- A drawing command. Commands are painted in ascending `layer`, and within a layer in list order,
-later over earlier; each paints `color` over the pixels it covers. -/
+later over earlier; each paints its `color` over the pixels it covers. -/
 structure Command where
   layer : Nat
-  color : Color
+  color : Shading
   shape : Shape
   deriving Repr
 
@@ -185,6 +178,11 @@ def Shape.region : Shape → Region
   | .marker .circle c r => Region.disc c r
   | .text b _ => Region.box b.x0 b.y0 b.x1 b.y1
   | .clipped b s => fun p => Region.box b.x0 b.y0 b.x1 b.y1 p ∧ s.region p
+
+/-- The colour a command gives a pixel it covers. -/
+def Command.colorAt (c : Command) (px : Pixel) : Color := c.color.at px
+
+theorem Command.colorAt_eq (c : Command) (px : Pixel) : c.colorAt px = c.color.at px := rfl
 
 /-- A command covers a pixel when its shape does. -/
 def Command.Covers (c : Command) (px : Pixel) : Prop := c.shape.region.Covers px

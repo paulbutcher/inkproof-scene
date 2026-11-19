@@ -54,12 +54,12 @@ theorem DisplayList.paintOrder_layer (dl : DisplayList) (k : Nat) :
 
 /-- The colour at a pixel when commands are painted in turn, each covering command replacing what
 is there. -/
-def paintOver (cov : Command → Bool) (bg : Color) (cmds : List Command) : Color :=
-  cmds.foldl (fun acc c => if cov c then c.color else acc) bg
+def paintOver (cov : Command → Bool) (px : Pixel) (bg : Color) (cmds : List Command) : Color :=
+  cmds.foldl (fun acc c => if cov c then c.colorAt px else acc) bg
 
-theorem paintOver_eq (cov : Command → Bool) (bg : Color) (cmds : List Command) :
-    paintOver cov bg cmds = match (cmds.filter cov).getLast? with
-      | some c => c.color
+theorem paintOver_eq (cov : Command → Bool) (px : Pixel) (bg : Color) (cmds : List Command) :
+    paintOver cov px bg cmds = match (cmds.filter cov).getLast? with
+      | some c => c.colorAt px
       | none => bg := by
   induction cmds using list_rev_induction with
   | h0 => simp [paintOver]
@@ -90,7 +90,7 @@ private theorem getLast?_of_filter_layer (F : List Command) (L : Nat) (w : Comma
 /-- Painting the commands in paint order, each covering command replacing what is there, gives the
 colour the raster model assigns. -/
 theorem pixelColor_eq_paintOver (dl : DisplayList) (bg : Color) (px : Pixel) :
-    pixelColor dl bg px = paintOver (fun c => c.shape.meetsB px.window) bg dl.paintOrder := by
+    pixelColor dl bg px = paintOver (fun c => c.shape.meetsB px.window) px bg dl.paintOrder := by
   rw [paintOver_eq]
   have hs := winner_spec (fun c => c.shape.meetsB px.window) dl.toList
   unfold pixelColor

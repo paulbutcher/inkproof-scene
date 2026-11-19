@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.18.0
+
+- `Shading` gives a command or chart `Paint` a gradient along x or y between stops, evaluated at each pixel centre; `Command.color` and `Paint.color` are now a `Shading`, which a `Color` converts to.
+
 ## v0.17.0
 
 - `placeAxisTitle` places an axis title centred along the axis, clear of its tick labels.

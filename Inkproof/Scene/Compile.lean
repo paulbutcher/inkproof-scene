@@ -22,6 +22,52 @@ structure Projection (α : Type u) (β : Type v) where
 
 def Projection.linear (sx sy : Linear Rat) : Projection Rat Rat := ⟨sx.map, sy.map⟩
 
+/-- A gradient along the plane's y axis with stops given in data units, placed by the projection. -/
+def Projection.gradientY {α : Type u} {β : Type v} (proj : Projection α β) (first : β × Color)
+    (rest : List (β × Color)) : Shading :=
+  .gradient .y ⟨proj.y first.1, first.2⟩ (rest.map fun (v, c) => ⟨proj.y v, c⟩)
+
+/-- A gradient along the plane's x axis with stops given in data units, placed by the projection. -/
+def Projection.gradientX {α : Type u} {β : Type v} (proj : Projection α β) (first : α × Color)
+    (rest : List (α × Color)) : Shading :=
+  .gradient .x ⟨proj.x first.1, first.2⟩ (rest.map fun (v, c) => ⟨proj.x v, c⟩)
+
+/-- A pixel whose centre is at the projection of a stop's value takes that stop's colour, when the
+projected stops ascend. -/
+theorem Projection.gradientY_at {α : Type u} {β : Type v} (proj : Projection α β)
+    (first : β × Color) (rest : List (β × Color))
+    (hs : (first :: rest).Pairwise fun a b => proj.y a.1 < proj.y b.1) {s : β × Color}
+    (hm : s ∈ first :: rest) {px : Pixel} (hpx : (px.row : Rat) + 1 / 2 = proj.y s.1) :
+    (proj.gradientY first rest).at px = s.2 := by
+  have hs' : (Stop.mk (proj.y first.1) first.2 :: rest.map fun (v, c) => ⟨proj.y v, c⟩).Pairwise
+      (·.pos < ·.pos) := by
+    refine List.pairwise_cons.2 ⟨fun a ha => ?_, List.pairwise_map.2 (List.pairwise_cons.1 hs).2⟩
+    obtain ⟨⟨v, c⟩, hm, rfl⟩ := List.mem_map.1 ha
+    exact (List.pairwise_cons.1 hs).1 _ hm
+  have := evalStops_at _ _ hs' ⟨proj.y s.1, s.2⟩ (by
+    cases List.mem_cons.1 hm with
+    | inl h => subst h; simp
+    | inr h => exact List.mem_cons_of_mem _ (List.mem_map.2 ⟨s, h, rfl⟩))
+  simpa [Projection.gradientY, Shading.at, hpx] using this
+
+/-- A pixel whose centre is at the projection of a stop's value takes that stop's colour, when the
+projected stops ascend. -/
+theorem Projection.gradientX_at {α : Type u} {β : Type v} (proj : Projection α β)
+    (first : α × Color) (rest : List (α × Color))
+    (hs : (first :: rest).Pairwise fun a b => proj.x a.1 < proj.x b.1) {s : α × Color}
+    (hm : s ∈ first :: rest) {px : Pixel} (hpx : (px.col : Rat) + 1 / 2 = proj.x s.1) :
+    (proj.gradientX first rest).at px = s.2 := by
+  have hs' : (Stop.mk (proj.x first.1) first.2 :: rest.map fun (v, c) => ⟨proj.x v, c⟩).Pairwise
+      (·.pos < ·.pos) := by
+    refine List.pairwise_cons.2 ⟨fun a ha => ?_, List.pairwise_map.2 (List.pairwise_cons.1 hs).2⟩
+    obtain ⟨⟨v, c⟩, hm, rfl⟩ := List.mem_map.1 ha
+    exact (List.pairwise_cons.1 hs).1 _ hm
+  have := evalStops_at _ _ hs' ⟨proj.x s.1, s.2⟩ (by
+    cases List.mem_cons.1 hm with
+    | inl h => subst h; simp
+    | inr h => exact List.mem_cons_of_mem _ (List.mem_map.2 ⟨s, h, rfl⟩))
+  simpa [Projection.gradientX, Shading.at, hpx] using this
+
 /-- The projected points of a series, a missing value staying missing. -/
 def Projection.points {α : Type u} {β : Type v} [LE α] (proj : Projection α β) (s : Series α β) :
     List (Option Pt) :=
@@ -211,10 +257,10 @@ theorem Region.covers_exists {α : Type} {rs : List α} {f : α → Region} {px 
     Region.Covers (fun p => ∃ r ∈ rs, f r p) px ↔ ∃ r ∈ rs, (f r).Covers px :=
   ⟨fun ⟨p, ⟨r, hr, h⟩, hc⟩ => ⟨r, hr, p, h, hc⟩, fun ⟨r, hr, p, h, hc⟩ => ⟨p, ⟨r, hr, h⟩, hc⟩⟩
 
-/-- A colour and a layer: how a chart paints its marks. -/
+/-- A shading and a layer: how a chart paints its marks. A `Color` is a flat shading. -/
 structure Paint where
   layer : Nat
-  color : Color
+  color : Shading
 
 /-- A line chart's style. `reduce` aggregates each run to the first, last, lowest and highest value
 of each pixel column class, which draws the same pixels as the full data for a bare line
