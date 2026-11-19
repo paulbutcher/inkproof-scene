@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.12.0
+
+- `compileIsolated` marks the samples a line cannot show, and `compileRing` draws a hollow marker.
+
 ## v0.11.0
 
 - `compileEnvelopeOfExtents` draws an envelope straight from a pyramid's per-column `Minimum` and `Maximum`.

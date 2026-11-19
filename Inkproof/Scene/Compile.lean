@@ -263,6 +263,26 @@ def compileScatter {α : Type u} {β : Type v} [LE α] (st : ScatterStyle) (proj
     v.map fun y => ⟨st.paint.layer, st.paint.color,
       .marker st.shape ⟨proj.x x, proj.y y⟩ st.radius⟩
 
+/-- A marker at each sample a line cannot show: the runs of exactly one sample. -/
+def compileIsolated {α : Type u} {β : Type v} [LE α] (st : ScatterStyle) (proj : Projection α β)
+    (g : Segmented α β) : DisplayList :=
+  (proj.runs g).toArray.filterMap fun
+    | [p] => some ⟨st.paint.layer, st.paint.color, .marker st.shape p st.radius⟩
+    | _ => none
+
+/-- A hollow disc marker: `outline` out to `radius`, with `fill` over it out to `radius - stroke`. -/
+structure RingStyle where
+  layer : Nat
+  outline : Color
+  fill : Color
+  radius : Rat
+  stroke : Rat
+
+/-- A hollow marker centred at `center`: a disc over a larger disc. -/
+def compileRing (st : RingStyle) (center : Pt) : DisplayList :=
+  #[⟨st.layer, st.outline, .marker .circle center st.radius⟩,
+    ⟨st.layer, st.fill, .marker .circle center (st.radius - st.stroke)⟩]
+
 /-- A heatmap cell: the rectangle from `(x0, y0)` to `(x1, y1)` and its value, if any. -/
 structure Cell (α : Type u) (β : Type v) (γ : Type) where
   x0 : α
@@ -400,6 +420,40 @@ theorem compileScatter_covers (st : ScatterStyle) (hr : 0 ≤ st.radius) (proj :
   | circle =>
     simp only [Shape.region, Region.disc, Rat.sub_self, Rat.zero_mul, Rat.add_zero]
     exact mul_self_nonneg' _
+
+/-- A marker is drawn for exactly the runs of one sample. -/
+theorem mem_compileIsolated (st : ScatterStyle) (proj : Projection α β) (g : Segmented α β)
+    (c : Command) :
+    c ∈ compileIsolated st proj g ↔ ∃ p, [p] ∈ proj.runs g ∧
+      c = ⟨st.paint.layer, st.paint.color, .marker st.shape p st.radius⟩ := by
+  simp only [compileIsolated, Array.mem_filterMap, List.mem_toArray]
+  constructor
+  · rintro ⟨r, hr, h⟩
+    match r, h with
+    | [p], h => exact ⟨p, hr, by simpa using h.symm⟩
+  · rintro ⟨p, hp, rfl⟩
+    exact ⟨[p], hp, rfl⟩
+
+/-- A hollow marker lies within its outer radius and fills it: its extent is `radius`, for a stroke
+no wider than the radius. -/
+theorem compileRing_extent (st : RingStyle) (center : Pt) (h0 : 0 ≤ st.stroke)
+    (h1 : st.stroke ≤ st.radius) (p : Pt) :
+    (∃ c ∈ compileRing st center, c.shape.region p) ↔ Region.disc center st.radius p := by
+  have hin : 0 ≤ st.radius - st.stroke := by grind
+  have hle : st.radius - st.stroke ≤ st.radius := by grind
+  simp only [compileRing, Array.mem_def, List.mem_cons, List.not_mem_nil,
+    or_false]
+  constructor
+  · rintro ⟨c, rfl | rfl, h⟩
+    · exact h
+    · simp only [Shape.region, Region.disc] at h ⊢
+      have : (st.radius - st.stroke) * (st.radius - st.stroke) ≤ st.radius * st.radius :=
+        by
+        have := Rat.mul_nonneg h0 (b := 2 * st.radius - st.stroke) (by grind)
+        grind
+      exact Rat.le_trans h this
+  · intro h
+    exact ⟨_, Or.inl rfl, h⟩
 
 omit [LE α] in
 theorem mem_compileHeatmap {γ : Type} (layer : Nat) (colorOf : γ → Color) (proj : Projection α β)
