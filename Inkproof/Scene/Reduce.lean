@@ -22,6 +22,20 @@ def groupByKey : List Pt → List (List Pt)
     | (q :: g) :: gs => if xKey p.x = xKey q.x then (p :: q :: g) :: gs else [p] :: (q :: g) :: gs
     | _ => [[p]]
 
+private def groupStep (p : Pt) : List (List Pt) → List (List Pt)
+  | (q :: g) :: gs => if xKey p.x = xKey q.x then (p :: q :: g) :: gs else [p] :: (q :: g) :: gs
+  | _ => [[p]]
+
+/-- The compiled form of `groupByKey`: a fold, which the compiler runs in constant stack. -/
+private def groupByKeyFold (l : List Pt) : List (List Pt) := l.foldr groupStep []
+
+@[csimp] private theorem groupByKey_eq_fold : @groupByKey = @groupByKeyFold := by
+  funext l
+  show groupByKey l = l.foldr groupStep []
+  induction l with
+  | nil => rfl
+  | cons p rest ih => rw [groupByKey, List.foldr_cons, ← ih]; rfl
+
 /-- What each point contributes to the aggregates of its run: first, last, lowest and highest. -/
 def measure (p : Pt) : First Pt × Last Pt × Minimum Rat × Maximum Rat :=
   (⟨some p⟩, ⟨some p⟩, ⟨some p.y⟩, ⟨some p.y⟩)

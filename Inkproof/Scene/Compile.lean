@@ -34,6 +34,25 @@ def runsOf : List (Option Pt) → List (List Pt)
     | [] => [[p]]
     | r :: rs => (p :: r) :: rs
 
+private def runsStep : Option Pt → List (List Pt) → List (List Pt)
+  | none, rs => [] :: rs
+  | some p, [] => [[p]]
+  | some p, r :: rs => (p :: r) :: rs
+
+/-- The compiled form of `runsOf`: a fold, which the compiler runs in constant stack. -/
+private def runsOfFold (l : List (Option Pt)) : List (List Pt) := l.foldr runsStep []
+
+@[csimp] private theorem runsOf_eq_fold : @runsOf = @runsOfFold := by
+  funext l
+  show runsOf l = l.foldr runsStep []
+  induction l with
+  | nil => rfl
+  | cons o rest ih =>
+    rw [List.foldr_cons, ← ih]
+    cases o <;> rw [runsOf]
+    · rfl
+    · cases runsOf rest <;> rfl
+
 /-- The runs of a segmented series: no run spans a break between segments or a missing value, so
 the points of a run are consecutive present points of one segment. -/
 def Projection.runs {α : Type u} {β : Type v} [LE α] (proj : Projection α β) (g : Segmented α β) :
@@ -44,6 +63,17 @@ def Projection.runs {α : Type u} {β : Type v} [LE α] (proj : Projection α β
 def Item.ofRuns : List (List Pt) → List (Item Pt)
   | [] => []
   | r :: rs => r.map Item.val ++ Item.gap :: Item.ofRuns rs
+
+/-- The compiled form of `Item.ofRuns`: a fold, which the compiler runs in constant stack. -/
+private def Item.ofRunsFold (rs : List (List Pt)) : List (Item Pt) :=
+  rs.foldr (fun r acc => r.map Item.val ++ Item.gap :: acc) []
+
+@[csimp] private theorem Item.ofRuns_eq_fold : @Item.ofRuns = @Item.ofRunsFold := by
+  funext rs
+  show Item.ofRuns rs = rs.foldr _ []
+  induction rs with
+  | nil => rfl
+  | cons r rs ih => rw [List.foldr_cons, ← ih]; rfl
 
 /-- However a strip is drawn, its runs are drawn separately: the gap between two runs joins
 nothing. -/
@@ -213,6 +243,31 @@ def envelopeItems : Bool → List (Option Column) → List (Item Column)
   | _, some c :: rest => .val c :: envelopeItems false rest
   | true, none :: rest => envelopeItems true rest
   | false, none :: rest => .gap :: envelopeItems true rest
+
+/-- The compiled form of `envelopeItems`: an accumulator loop. -/
+private def envelopeItemsAux : Bool → List (Item Column) → List (Option Column) → List (Item Column)
+  | _, acc, [] => acc.reverse
+  | _, acc, some c :: rest => envelopeItemsAux false (.val c :: acc) rest
+  | true, acc, none :: rest => envelopeItemsAux true acc rest
+  | false, acc, none :: rest => envelopeItemsAux true (.gap :: acc) rest
+
+private theorem envelopeItemsAux_eq (l : List (Option Column)) :
+    ∀ (b : Bool) (acc : List (Item Column)),
+      envelopeItemsAux b acc l = acc.reverse ++ envelopeItems b l := by
+  induction l with
+  | nil => intro b acc; simp [envelopeItemsAux, envelopeItems]
+  | cons o rest ih =>
+    intro b acc
+    cases o with
+    | some c => simp [envelopeItemsAux, envelopeItems, ih]
+    | none => cases b <;> simp [envelopeItemsAux, envelopeItems, ih]
+
+private def envelopeItemsLoop (b : Bool) (l : List (Option Column)) : List (Item Column) :=
+  envelopeItemsAux b [] l
+
+@[csimp] private theorem envelopeItems_eq_loop : @envelopeItems = @envelopeItemsLoop := by
+  funext b l
+  simp [envelopeItemsLoop, envelopeItemsAux_eq]
 
 /-- The projected columns of per-column extents, an absent column staying absent. Column `i` lies
 at `proj.x i`. -/

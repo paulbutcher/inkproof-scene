@@ -51,6 +51,29 @@ def scatterOnePerSample : TestCase := .mk "scatter has one marker per present va
     let dl := compileScatter ⟨⟨0, ⟨0, 0, 0, 255⟩⟩, .circle, 1⟩ proj s
     check (dl.size == (vals.filter fun v => v.2.isSome).size) "marker count differs from present values"
 
-def tests : List TestCase := [reductionKeepsWhatMatters, spikeSurvives, scatterOnePerSample]
+/-- A million points, every thousandth missing: the compilers must not recurse once per point. -/
+def millionPoints : Array (Nat × Option Rat) :=
+  Array.ofFn (n := 1000000) fun i => (i.val, if i.val % 1000 == 999 then none else some ((i.val % 97 : Nat) : Rat))
+
+def millionPointsCompile : TestCase := .mk "compilers handle a million points" <|
+  match Series.ofPoints? millionPoints with
+  | .error _ => .error "series rejected"
+  | .ok s => do
+    let proj : Projection Nat Rat := ⟨fun x => (x : Rat) / 1000, id⟩
+    let paint : Paint := ⟨0, ⟨0, 0, 0, 255⟩⟩
+    let g := Segmented.single s
+    let line := compileLine ⟨paint, 1, true⟩ proj g
+    let area := compileArea paint 0 proj g
+    let env := compileEnvelope paint proj (s.values.map (·.map fun y => (y, y)))
+    check (line.size == 1 && area.size == 1 && env.size == 1) "a chart did not compile to one command"
+    let items : Nat := match line[0]? with
+      | some c => match c.shape with
+        | .strip _ is => is.length
+        | _ => 0
+      | none => 0
+    check (items != 0) "line has no items"
+
+def tests : List TestCase :=
+  [reductionKeepsWhatMatters, spikeSurvives, scatterOnePerSample, millionPointsCompile]
 
 end InkproofSceneTest.CompileTests
