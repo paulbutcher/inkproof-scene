@@ -51,6 +51,16 @@ def scatterOnePerSample : TestCase := .mk "scatter has one marker per present va
     let dl := compileScatter ⟨⟨0, ⟨0, 0, 0, 255⟩⟩, .circle, 1⟩ proj s
     check (dl.size == (vals.filter fun v => v.2.isSome).size) "marker count differs from present values"
 
+def scatterByRadiusPerValue : TestCase := .mk "scatterBy draws each marker at the radius of its value" <|
+  forAll 300 genPoints fun pts => do
+    let s := Series.ofUnsorted (pts.toArray.map fun p => (p.x, some p.y))
+    let proj : Projection Rat Rat := ⟨id, id⟩
+    let r := fun (y : Rat) => y.abs
+    for c in compileScatterBy ⟨⟨0, ⟨0, 0, 0, 255⟩⟩, .circle, 1⟩ r proj s do
+      match c.shape with
+      | .marker _ p rad => check (rad == r p.y) "radius differs from the value's"
+      | _ => check false "not a marker"
+
 private def pathLength : List Pt → Rat
   | a :: b :: rest => segLength a b + pathLength (b :: rest)
   | _ => 0
@@ -90,7 +100,7 @@ def millionPointsCompile : TestCase := .mk "compilers handle a million points" <
     check (items != 0) "line has no items"
 
 def tests : List TestCase :=
-  [reductionKeepsWhatMatters, spikeSurvives, scatterOnePerSample, dashesStayWithinPattern,
+  [reductionKeepsWhatMatters, spikeSurvives, scatterOnePerSample, scatterByRadiusPerValue, dashesStayWithinPattern,
     dashesCoverEveryPeriod, millionPointsCompile]
 
 end InkproofSceneTest.CompileTests

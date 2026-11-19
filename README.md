@@ -5,7 +5,7 @@ The display list for Inkproof charts, the compilers that produce it, and a refer
 ## What it does
 
 - Describe a drawing as a display list of layered, coloured shapes (rectangles, line strips, areas, envelopes, markers, text, clipped groups): `DisplayList`, `Command`, `Shape`, `Paint`, `Color`.
-- Compile chart data into display-list commands through a projection from data to plane coordinates: `Projection`, `compileLine`, `compileArea`, `compileBars`, `compileScatter`, `compileIsolated`, `compileHeatmap`, `compileEnvelope`.
+- Compile chart data into display-list commands through a projection from data to plane coordinates: `Projection`, `compileLine`, `compileArea`, `compileBars`, `compileScatter`, `compileScatterBy` (radius from the value), `compileIsolated`, `compileHeatmap`, `compileEnvelope`.
 - Draw a line, area or envelope with gaps where data is missing, so no stroke bridges an absent value: `Item`, `runsOf`, `Item.ofRuns`, `compileEnvelope`.
 - Draw an envelope straight from a pyramid's per-column `Minimum` and `Maximum`, an empty column left as a gap: `compileEnvelopeOfExtents`, `extentColumns`.
 - Walk a strip's pieces and joins in order, or split it into its runs at its gaps: `Item.fold`, `Item.runs`, `Item.chain`.

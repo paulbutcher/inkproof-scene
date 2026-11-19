@@ -333,6 +333,13 @@ def compileScatter {α : Type u} {β : Type v} [LE α] (st : ScatterStyle) (proj
     v.map fun y => ⟨st.paint.layer, st.paint.color,
       .marker st.shape ⟨proj.x x, proj.y y⟩ st.radius⟩
 
+/-- A scatter chart whose marker radius depends on the value: each present value gets `radius` of it. -/
+def compileScatterBy {α : Type u} {β : Type v} [LE α] (st : ScatterStyle) (radius : β → Rat)
+    (proj : Projection α β) (s : Series α β) : DisplayList :=
+  s.points.filterMap fun (x, v) =>
+    v.map fun y => ⟨st.paint.layer, st.paint.color,
+      .marker st.shape ⟨proj.x x, proj.y y⟩ (radius y)⟩
+
 /-- A marker at each sample a line cannot show: the runs of exactly one sample. -/
 def compileIsolated {α : Type u} {β : Type v} [LE α] (st : ScatterStyle) (proj : Projection α β)
     (g : Segmented α β) : DisplayList :=
@@ -495,6 +502,18 @@ theorem mem_compileScatter (st : ScatterStyle) (proj : Projection α β) (s : Se
     c ∈ compileScatter st proj s ↔ ∃ x y, (x, some y) ∈ s.points ∧
       c = ⟨st.paint.layer, st.paint.color, .marker st.shape ⟨proj.x x, proj.y y⟩ st.radius⟩ := by
   simp only [compileScatter, Array.mem_filterMap]
+  constructor
+  · rintro ⟨⟨x, _ | y⟩, hm, h⟩
+    · simp at h
+    · exact ⟨x, y, hm, by simpa using h.symm⟩
+  · rintro ⟨x, y, hm, rfl⟩
+    exact ⟨(x, some y), hm, rfl⟩
+
+theorem mem_compileScatterBy (st : ScatterStyle) (radius : β → Rat) (proj : Projection α β)
+    (s : Series α β) (c : Command) :
+    c ∈ compileScatterBy st radius proj s ↔ ∃ x y, (x, some y) ∈ s.points ∧
+      c = ⟨st.paint.layer, st.paint.color, .marker st.shape ⟨proj.x x, proj.y y⟩ (radius y)⟩ := by
+  simp only [compileScatterBy, Array.mem_filterMap]
   constructor
   · rintro ⟨⟨x, _ | y⟩, hm, h⟩
     · simp at h
