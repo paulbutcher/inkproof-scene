@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 import Inkproof.Core.Segmented
 import Inkproof.Scale.Linear
+import Inkproof.Scene.Dash
 import Inkproof.Scene.Reduce
 
 namespace Inkproof.Scene
@@ -216,18 +217,32 @@ structure Paint where
 
 /-- A line chart's style. `reduce` aggregates each run to the first, last, lowest and highest value
 of each pixel column class, which draws the same pixels as the full data for a bare line
-(`compileLine_covers_iff`); a thick line is not covered by that guarantee. -/
+(`compileLine_covers_iff`); a thick line is not covered by that guarantee. A `dash` cuts each run,
+after reducing, into dashes (`dashRun`), each within the undashed line; `none` is solid. -/
 structure LineStyle where
   paint : Paint
   halfWidth : Rat
   reduce : Bool
+  dash : Option DashPattern := none
+
+/-- The runs cut into dashes, or as they are when there is no pattern. -/
+def dashRuns : Option DashPattern → List (List Pt) → List (List Pt)
+  | none, runs => runs
+  | some d, runs => runs.flatMap (dashRun d)
+
+theorem dashRuns_none (runs : List (List Pt)) : dashRuns none runs = runs := rfl
+
+theorem dashRuns_some (d : DashPattern) (runs : List (List Pt)) :
+    dashRuns (some d) runs = runs.flatMap (dashRun d) := rfl
 
 /-- A line chart: one strip, broken at every gap and missing value. -/
 def compileLine {α : Type u} {β : Type v} [LE α] (st : LineStyle) (proj : Projection α β)
     (g : Segmented α β) : DisplayList :=
   let runs := proj.runs g
+  let runs := if st.reduce then runs.map reducePoints else runs
+  let runs := dashRuns st.dash runs
   #[⟨st.paint.layer, st.paint.color,
-    .strip st.halfWidth (Item.ofRuns (if st.reduce then runs.map reducePoints else runs))⟩]
+    .strip st.halfWidth (Item.ofRuns runs)⟩]
 
 /-- An area chart: the area between the series and the line at `baseline`, broken at every gap and
 missing value. -/
@@ -378,7 +393,8 @@ private theorem strip_covers_runs {c : Command} {hw : Rat} {rs : List (List Pt)}
 /-- Reducing a bare line to the first, last, lowest and highest value of each pixel column class
 draws exactly the pixels the full data does. The theorem holds for every series, sorted
 or not: it needs no assumption about the data or the projection. -/
-theorem compileLine_covers_iff (st : LineStyle) (hw : st.halfWidth = 0) (proj : Projection α β)
+theorem compileLine_covers_iff (st : LineStyle) (hw : st.halfWidth = 0) (hd : st.dash = none)
+    (proj : Projection α β)
     (g : Segmented α β) (px : Pixel) :
     (compileLine st proj g).Covers px ↔
       (compileLine { st with reduce := false } proj g).Covers px := by
@@ -387,7 +403,9 @@ theorem compileLine_covers_iff (st : LineStyle) (hw : st.halfWidth = 0) (proj : 
         (poly r).Covers px := by
     intro b
     rw [compileLine, covers_singleton]
-    rw [← Command.Covers, strip_covers_runs (by rfl)]
+    rw [← Command.Covers, strip_covers_runs
+      (hw := st.halfWidth) (rs := if b then (proj.runs g).map reducePoints else proj.runs g)
+      (by simp [hd, dashRuns])]
     simp only [hw]
     exact ⟨fun ⟨r, hr, h⟩ => ⟨r, hr, Region.covers_congr (Region.thicken_zero _) px |>.mp h⟩,
       fun ⟨r, hr, h⟩ => ⟨r, hr, Region.covers_congr (Region.thicken_zero _) px |>.mpr h⟩⟩
@@ -408,13 +426,13 @@ theorem compileLine_covers_iff (st : LineStyle) (hw : st.halfWidth = 0) (proj : 
 series is a projected present point, or lies on the segment between two projected present points
 that are adjacent in one segment, with no break and no missing value between them. -/
 theorem compileLine_no_bridge (st : LineStyle) (hw : st.halfWidth = 0) (hr : st.reduce = false)
-    (proj : Projection α β) (g : Segmented α β) {c : Command}
+    (hd : st.dash = none) (proj : Projection α β) (g : Segmented α β) {c : Command}
     (hc : c ∈ compileLine st proj g) {p : Pt} (h : c.shape.region p) :
     ∃ s ∈ g.segments.toList, some p ∈ proj.points s ∨
       ∃ a b, [some a, some b] <:+: proj.points s ∧ Region.seg a b p := by
   have hcmd : c = ⟨st.paint.layer, st.paint.color,
       .strip st.halfWidth (Item.ofRuns (proj.runs g))⟩ := by
-    simpa [compileLine, hr] using hc
+    simpa [compileLine, hr, hd, dashRuns] using hc
   subst hcmd
   simp only [Shape.region, hw, Region.thicken_zero, Item.chain_ofRuns] at h
   obtain ⟨r, hrun, hp⟩ := h
@@ -425,6 +443,28 @@ theorem compileLine_no_bridge (st : LineStyle) (hw : st.halfWidth = 0) (hr : st.
   rcases poly_mem_adj hp with hm | ⟨a, b, hi, hseg⟩
   · exact Or.inl (h1 r hrs p hm)
   · exact Or.inr ⟨a, b, h2 r hrs a b hi, hseg⟩
+
+/-- A dashed line draws nothing the same line undashed does not: its dashes lie within the undashed
+strip's region, so the line is still never drawn across a gap. -/
+theorem compileLine_dash_sub (st : LineStyle) (proj : Projection α β) (g : Segmented α β)
+    {c : Command} (hc : c ∈ compileLine st proj g) {p : Pt} (h : c.shape.region p) :
+    ∃ c' ∈ compileLine { st with dash := none } proj g, c'.shape.region p := by
+  refine ⟨_, Array.mem_singleton.mpr rfl, ?_⟩
+  have hcmd : c = ⟨st.paint.layer, st.paint.color, .strip st.halfWidth (Item.ofRuns
+      (dashRuns st.dash (if st.reduce then (proj.runs g).map reducePoints else proj.runs g)))⟩ := by
+    simpa [compileLine] using hc
+  subst hcmd
+  simp only [Shape.region, Region.thicken, Item.chain_ofRuns] at h ⊢
+  obtain ⟨q, ⟨r, hr, hq⟩, hd⟩ := h
+  refine ⟨q, ?_, hd⟩
+  cases hdash : st.dash with
+  | none =>
+    simp only [hdash, dashRuns] at hr ⊢
+    exact ⟨r, hr, hq⟩
+  | some d =>
+    simp only [hdash, dashRuns] at hr
+    obtain ⟨l, hl, hrl⟩ := List.mem_flatMap.mp hr
+    exact ⟨l, by simpa [dashRuns] using hl, dashRun_sub _ _ hrl q hq⟩
 
 /-- An area chart's runs are filled separately, as a strip's are. -/
 theorem compileArea_no_bridge (paint : Paint) (baseline : β) (proj : Projection α β)

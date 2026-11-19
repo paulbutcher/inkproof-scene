@@ -12,6 +12,7 @@ The display list for Inkproof charts, the compilers that produce it, and a refer
 - Mark the samples a line cannot show, and draw a hollow marker: `compileIsolated`, `compileRing`.
 - Style bars, lines and scatter points: `BarStyle`, `LineStyle`, `ScatterStyle`, `RingStyle`, `SeriesStyle`, with `Dash` and `MarkerShape` for dashes and markers.
 - Give the data a chart compiler takes: `Pt` for line and scatter points, `Cell` for heatmap cells, `Column` for envelope columns.
+- Draw a line dashed or dotted with a stated pattern along its length, each dash within the solid line and no dash across a gap: `LineStyle.dash`, `DashPattern`, `Dash.pattern`, `dashRun`.
 - Thin dense line data without changing its look: `reducePoints`, `reduceRun`, `groupByKey`.
 - Clip a display list to a rectangle: `DisplayList.clip`, `Command.clip`, `Shape.clip`, `Rect.meet`.
 - Find which commands paint a pixel, and in what order: `DisplayList.paintOrder`, `DisplayList.Covers`, `Command.Covers`, `winner`.

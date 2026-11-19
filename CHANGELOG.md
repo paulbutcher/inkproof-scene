@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.13.0
+
+- `LineStyle.dash` draws a line dashed or dotted with a `DashPattern` in grid units, and `Dash.pattern` gives the pattern for a series theme's dash.
+
 ## v0.12.1
 
 - `compileLine`, `compileArea` and `compileEnvelope` no longer recurse once per point, so a million points compile.

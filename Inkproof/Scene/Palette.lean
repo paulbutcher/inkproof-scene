@@ -2,6 +2,7 @@
 Copyright (c) 2026 Paul Butcher. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
+import Inkproof.Scene.Dash
 import Inkproof.Scene.DisplayList
 
 namespace Inkproof.Scene
@@ -11,13 +12,25 @@ inductive Theme where
   | dark
   deriving DecidableEq, Repr
 
-/-- How a series' line is broken up. The display list has no dashes, so a consumer applies this
-by inserting gaps along the line. -/
+/-- How a series' line is broken up; `Dash.pattern` gives the pattern `compileLine` draws it with. -/
 inductive Dash where
   | solid
   | dashed
   | dotted
   deriving DecidableEq, Repr
+
+/-- The pattern for a dash, in units of `unit` along the line (typically the line's width): none for
+a solid line. -/
+def Dash.pattern (unit : Rat) : Dash → Option DashPattern
+  | .solid => none
+  | .dashed => some ⟨4 * unit, 3 * unit⟩
+  | .dotted => some ⟨unit, 2 * unit⟩
+
+theorem Dash.pattern_solid (unit : Rat) : Dash.solid.pattern unit = none := rfl
+
+theorem Dash.pattern_dashed (unit : Rat) : Dash.dashed.pattern unit = some ⟨4 * unit, 3 * unit⟩ := rfl
+
+theorem Dash.pattern_dotted (unit : Rat) : Dash.dotted.pattern unit = some ⟨unit, 2 * unit⟩ := rfl
 
 /-- Everything that tells one series from another: a series is identifiable by its marker and dash
 without its colour. -/
