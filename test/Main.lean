@@ -7,9 +7,10 @@ import InkproofTools.Test.Platform
 import InkproofSceneTest.CompileTests
 import InkproofSceneTest.RenderTests
 import InkproofSceneTest.PaletteTests
+import InkproofSceneTest.AxisTests
 
 open InkproofTools.Test
 
 def main (args : List String) : IO UInt32 :=
   runTests (platformTest (args.contains "--expect-wasm") ::
-    (InkproofSceneTest.CompileTests.tests ++ InkproofSceneTest.renderTests ++ InkproofSceneTest.paletteTests))
+    (InkproofSceneTest.CompileTests.tests ++ InkproofSceneTest.renderTests ++ InkproofSceneTest.paletteTests ++ InkproofSceneTest.AxisTests.tests))

@@ -3,6 +3,12 @@ Copyright (c) 2026 Paul Butcher. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
 import Inkproof.Axis.Layout
+import Inkproof.Axis.LabelLayout
+import Inkproof.Axis.Scales
+import Inkproof.Axis.TickLabels
+import Inkproof.Scale.Linear
+import Inkproof.Scale.Log
+import Inkproof.Float.FloatValue
 import Inkproof.Scene.Compile
 
 namespace Inkproof.Scene
@@ -156,5 +162,74 @@ theorem compileAxis_label {α : Type u} (side : Side) (r : Rect) (proj : α → 
     ∃ pl ∈ (compileAxis side r proj st ticks layout).labels,
       pl.text = l.2 ∧ side.along pl.anchor = proj l.1 ∧ pl.rotation = layout.rotation := by
   refine ⟨_, List.mem_map.2 ⟨l, h, rfl⟩, rfl, Side.along_pt .., rfl⟩
+
+/-- What a scale axis needs besides its geometry: the locale tick labels are written in, roughly how
+many ticks to aim for, and the least gap between neighbouring labels. -/
+structure TickSpec where
+  locale : Inkproof.Axis.Locale
+  target : Nat
+  labelGap : Float
+
+/-- An axis whose ticks are at the given pixel positions along it, in any order. A tick whose
+position is not a finite float is not drawn. Labels pair with the ticks in order, and as many are
+shown as `layoutLabels` can fit. -/
+def compilePixelAxis (side : Side) (r : Rect) (st : AxisStyle) (measure : String → Float × Float)
+    (gap : Float) (pixels : List Float) (labels : List String) : AxisDrawing :=
+  let placed := pixels.zip labels
+  let layout : Inkproof.Axis.Layout (Float × String) :=
+    if side.horizontal then Inkproof.Axis.layoutLabels measure gap (placed.mergeSort fun a b => a.1 ≤ b.1)
+    else
+      let (stride, kept) := Inkproof.Axis.layoutLabelsVertical measure gap placed
+      ⟨.horizontal, stride, kept⟩
+  compileAxis side r id st (pixels.filterMap Inkproof.Float.Float.toRat)
+    ⟨layout.rotation, layout.stride, layout.kept.filterMap fun l =>
+      (Inkproof.Float.Float.toRat l.1).map (·, l.2)⟩
+
+theorem compilePixelAxis_tick (side : Side) (r : Rect) (st : AxisStyle)
+    (measure : String → Float × Float) (gap : Float) (pixels : List Float) (labels : List String)
+    {p : Float} {q : Rat} (hp : p ∈ pixels) (hq : Inkproof.Float.Float.toRat p = some q) :
+    ∃ c ∈ (compilePixelAxis side r st measure gap pixels labels).display, ∃ a b,
+      c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
+      side.along a = q ∧ side.along b = q := by
+  unfold compilePixelAxis
+  exact compileAxis_tick side r id st _ _ (t := q) (List.mem_filterMap.2 ⟨p, hp, hq⟩)
+
+/-- An axis for a linear scale: ticks where `linearScaleTicks` puts them, at the pixel the scale
+maps each to. -/
+def compileLinearAxis (side : Side) (r : Rect) (s : Inkproof.Scale.Linear Float) (spec : TickSpec)
+    (measure : String → Float × Float) (st : AxisStyle) : AxisDrawing :=
+  let ts := Inkproof.Axis.linearScaleTicks s spec.target
+  compilePixelAxis side r st measure spec.labelGap (ts.map s.map)
+    (Inkproof.Axis.tickLabels spec.locale ts)
+
+/-- An axis for a logarithmic scale: ticks where `logScaleTicks` puts them, at the pixel the scale
+maps each to. -/
+def compileLogAxis (side : Side) (r : Rect) (s : Inkproof.Scale.Log Float) (spec : TickSpec)
+    (measure : String → Float × Float) (st : AxisStyle) : AxisDrawing :=
+  let ts := Inkproof.Axis.logScaleTicks s spec.target
+  compilePixelAxis side r st measure spec.labelGap (ts.map (s.map Float.log))
+    (Inkproof.Axis.tickLabels spec.locale ts)
+
+/-- Every tick of a linear scale whose pixel is finite has a tick mark at the scale's own
+projection of it. -/
+theorem compileLinearAxis_tick (side : Side) (r : Rect) (s : Inkproof.Scale.Linear Float)
+    (spec : TickSpec) (measure : String → Float × Float) (st : AxisStyle) {t : Float} {q : Rat}
+    (ht : t ∈ Inkproof.Axis.linearScaleTicks s spec.target)
+    (hq : Inkproof.Float.Float.toRat (s.map t) = some q) :
+    ∃ c ∈ (compileLinearAxis side r s spec measure st).display, ∃ a b,
+      c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
+      side.along a = q ∧ side.along b = q :=
+  compilePixelAxis_tick _ _ _ _ _ _ _ (List.mem_map.2 ⟨t, ht, rfl⟩) hq
+
+/-- Every tick of a log scale whose pixel is finite has a tick mark at the scale's own projection
+of it. -/
+theorem compileLogAxis_tick (side : Side) (r : Rect) (s : Inkproof.Scale.Log Float)
+    (spec : TickSpec) (measure : String → Float × Float) (st : AxisStyle) {t : Float} {q : Rat}
+    (ht : t ∈ Inkproof.Axis.logScaleTicks s spec.target)
+    (hq : Inkproof.Float.Float.toRat (s.map Float.log t) = some q) :
+    ∃ c ∈ (compileLogAxis side r s spec measure st).display, ∃ a b,
+      c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
+      side.along a = q ∧ side.along b = q :=
+  compilePixelAxis_tick _ _ _ _ _ _ _ (List.mem_map.2 ⟨t, ht, rfl⟩) hq
 
 end Inkproof.Scene
