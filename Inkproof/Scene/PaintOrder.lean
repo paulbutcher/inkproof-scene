@@ -6,11 +6,6 @@ import Inkproof.Scene.Render
 
 namespace Inkproof.Scene
 
-/-- The commands of a display list in the order they are painted: ascending layer, list order
-within a layer. -/
-def DisplayList.paintOrder (dl : DisplayList) : List Command :=
-  dl.toList.mergeSort (fun a b => decide (a.layer ≤ b.layer))
-
 private theorem layer_trans (a b c : Command) :
     decide (a.layer ≤ b.layer) = true → decide (b.layer ≤ c.layer) = true →
     decide (a.layer ≤ c.layer) = true := by
@@ -52,15 +47,8 @@ theorem DisplayList.paintOrder_layer (dl : DisplayList) (k : Nat) :
     dl.paintOrder.filter (fun c => c.layer == k) = dl.toList.filter (fun c => c.layer == k) :=
   paintOrder_filter_layer dl k _ (by simp)
 
-/-- The colour at a pixel when commands are painted in turn, each covering command replacing what
-is there. -/
-def paintOver (cov : Command → Bool) (px : Pixel) (bg : Color) (cmds : List Command) : Color :=
-  cmds.foldl (fun acc c => if cov c then c.colorAt px else acc) bg
-
-theorem paintOver_eq (cov : Command → Bool) (px : Pixel) (bg : Color) (cmds : List Command) :
-    paintOver cov px bg cmds = match (cmds.filter cov).getLast? with
-      | some c => c.colorAt px
-      | none => bg := by
+theorem paintOver_eq_foldl (cov : Command → Bool) (px : Pixel) (bg : Color) (cmds : List Command) :
+    paintOver cov px bg cmds = (cmds.filter cov).foldl (fun acc c => (c.colorAt px).over acc) bg := by
   induction cmds using list_rev_induction with
   | h0 => simp [paintOver]
   | hs l x ih =>
@@ -87,13 +75,11 @@ private theorem getLast?_of_filter_layer (F : List Command) (L : Nat) (w : Comma
         simp; omega
       simp [List.filter_append, this, hm] at hw
 
-/-- Painting the commands in paint order, each covering command replacing what is there, gives the
-colour the raster model assigns. -/
-theorem pixelColor_eq_paintOver (dl : DisplayList) (bg : Color) (px : Pixel) :
-    pixelColor dl bg px = paintOver (fun c => c.shape.meetsB px.window) px bg dl.paintOrder := by
-  rw [paintOver_eq]
+/-- The last covering command in paint order is the winner. -/
+theorem last_covering_eq_winner (dl : DisplayList) (px : Pixel) :
+    (dl.paintOrder.filter (fun c => c.shape.meetsB px.window)).getLast? =
+      winner (fun c => c.shape.meetsB px.window) dl.toList := by
   have hs := winner_spec (fun c => c.shape.meetsB px.window) dl.toList
-  unfold pixelColor
   cases hw : winner (fun c => c.shape.meetsB px.window) dl.toList with
   | none =>
     have h1 := hs.1.1 hw
@@ -105,7 +91,6 @@ theorem pixelColor_eq_paintOver (dl : DisplayList) (bg : Color) (px : Pixel) :
   | some w =>
     obtain ⟨l1, l2, e, hc, h1, h2⟩ := hs.2 w hw
     obtain ⟨F, hF⟩ : ∃ F, F = dl.paintOrder.filter (fun c => c.shape.meetsB px.window) := ⟨_, rfl⟩
-    rw [← hF]
     have hmemF : ∀ c ∈ F, c ∈ dl.toList ∧ c.shape.meetsB px.window = true := fun c hc' => by
       rw [hF] at hc'
       exact ⟨dl.paintOrder_perm.subset (List.mem_filter.1 hc').1, by simpa using (List.mem_filter.1 hc').2⟩
@@ -137,6 +122,71 @@ theorem pixelColor_eq_paintOver (dl : DisplayList) (bg : Color) (px : Pixel) :
     have hlast : (F.filter (fun c => c.layer == w.layer)).getLast? = some w := by
       rw [hFq, hq, e, List.filter_append, List.filter_cons_of_pos (by simp [hc]), hl2]
       simp
-    rw [getLast?_of_filter_layer F w.layer w hsorted hle hlast]
+    rw [← hF]
+    exact getLast?_of_filter_layer F w.layer w hsorted hle hlast
+
+
+/-- The colour at a pixel: `bg` with each covering command composited over it, in paint order. -/
+theorem pixelColor_eq_foldl (dl : DisplayList) (bg : Color) (px : Pixel) :
+    pixelColor dl bg px = (dl.paintOrder.filter (fun c => c.shape.meetsB px.window)).foldl
+      (fun acc c => (c.colorAt px).over acc) bg :=
+  paintOver_eq_foldl _ _ _ _
+
+theorem pixelColor_of_not_covers {dl : DisplayList} {bg : Color} {px : Pixel}
+    (h : ¬ dl.Covers px) : pixelColor dl bg px = bg := by
+  have hn : winner (fun c => c.shape.meetsB px.window) dl.toList = none :=
+    (winner_spec _ dl.toList).1.mpr fun c hc => by
+      cases hb : c.shape.meetsB px.window
+      · rfl
+      · exact absurd ⟨c, Array.mem_toList_iff.1 hc, (Command.meetsB_iff c px).1 hb⟩ h
+  rw [← last_covering_eq_winner, List.getLast?_eq_none_iff] at hn
+  rw [pixelColor_eq_foldl, hn]; rfl
+
+/-- The command on top at a covered pixel shows its own colour there when that is opaque. -/
+theorem pixelColor_of_covers {dl : DisplayList} {bg : Color} {px : Pixel} (h : dl.Covers px) :
+    ∃ l1 c l2, dl.toList = l1 ++ c :: l2 ∧ c.Covers px ∧
+      ((c.colorAt px).a = 255 → pixelColor dl bg px = c.colorAt px) ∧
+      (∀ c' ∈ l1, c'.Covers px → c'.layer ≤ c.layer) ∧
+      (∀ c' ∈ l2, c'.Covers px → c'.layer < c.layer) := by
+  obtain ⟨c0, hc0, hcov⟩ := h
+  have hs := winner_spec (fun c => c.shape.meetsB px.window) dl.toList
+  cases hw : winner (fun c => c.shape.meetsB px.window) dl.toList with
+  | none =>
+    have := hs.1.1 hw c0 (Array.mem_toList_iff.2 hc0)
+    simp [(Command.meetsB_iff c0 px).2 hcov] at this
+  | some c =>
+    obtain ⟨l1, l2, e, hc, h1, h2⟩ := hs.2 c hw
+    refine ⟨l1, c, l2, e, (Command.meetsB_iff c px).1 hc, fun ha => ?_, fun c' hc' hk => ?_,
+      fun c' hc' hk => ?_⟩
+    · rw [← last_covering_eq_winner, List.getLast?_eq_some_iff] at hw
+      obtain ⟨ys, hy⟩ := hw
+      rw [pixelColor_eq_foldl, hy, List.foldl_append]
+      exact Color.over_opaque ha _
+    · exact h1 c' hc' ((Command.meetsB_iff c' px).2 hk)
+    · exact h2 c' hc' ((Command.meetsB_iff c' px).2 hk)
+
+/-- A covered pixel is painted by a covering command on the layer of a covering command or above,
+and shows that command's colour when it is opaque. -/
+theorem pixelColor_covered {dl : DisplayList} {bg : Color} {px : Pixel} {c : Command}
+    (hc : c ∈ dl) (h : c.Covers px) :
+    ∃ c' ∈ dl, c'.Covers px ∧ ((c'.colorAt px).a = 255 → pixelColor dl bg px = c'.colorAt px) ∧
+      c.layer ≤ c'.layer := by
+  obtain ⟨l1, c', l2, e, hc', hcol, h1, h2⟩ := pixelColor_of_covers (bg := bg) (px := px) ⟨c, hc, h⟩
+  have hm : c ∈ l1 ++ c' :: l2 := by rw [← e]; exact Array.mem_toList_iff.2 hc
+  refine ⟨c', Array.mem_toList_iff.1 (by rw [e]; simp), hc', hcol, ?_⟩
+  simp only [List.mem_append, List.mem_cons] at hm
+  rcases hm with hm | rfl | hm
+  · exact h1 c hm h
+  · exact Nat.le_refl _
+  · exact Nat.le_of_lt (h2 c hm h)
+
+/-- A one-sample spike between pixel centres still shows: a strip's lone value paints the pixel it
+lies in, whatever the half-width, even zero. -/
+theorem render_spike {dl : DisplayList} {bg : Color} {c : Command} (hc : c ∈ dl) {hw : Rat}
+    {items : List (Item Pt)} (hs : c.shape = .strip hw items) {a : Pt} (ha : Item.val a ∈ items)
+    {px : Pixel} (hp : px.Contains a) :
+    ∃ c' ∈ dl, c'.Covers px ∧ ((c'.colorAt px).a = 255 → pixelColor dl bg px = c'.colorAt px) ∧
+      c.layer ≤ c'.layer :=
+  pixelColor_covered hc (Command.covers_of_mem (by rw [hs]; exact Shape.strip_region_of_val ha) hp)
 
 end Inkproof.Scene

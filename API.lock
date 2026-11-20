@@ -42,6 +42,9 @@ theorem Inkproof.Scene.Color.ofHsl_eq : ∀ (h s l a : Rat), (Inkproof.Scene.Col
 theorem Inkproof.Scene.Color.ofHsl_lightness_one : ∀ (h s a : Rat), (Inkproof.Scene.Color.ofHsl h s 1 a).r = 255 ∧ (Inkproof.Scene.Color.ofHsl h s 1 a).g = 255 ∧ (Inkproof.Scene.Color.ofHsl h s 1 a).b = 255
 theorem Inkproof.Scene.Color.ofHsl_lightness_zero : ∀ (h s a : Rat), (Inkproof.Scene.Color.ofHsl h s 0 a).r = 0 ∧ (Inkproof.Scene.Color.ofHsl h s 0 a).g = 0 ∧ (Inkproof.Scene.Color.ofHsl h s 0 a).b = 0
 theorem Inkproof.Scene.Color.ofHsl_saturation_zero : ∀ (h l a : Rat), (Inkproof.Scene.Color.ofHsl h 0 l a).r = (Inkproof.Scene.Color.ofHsl h 0 l a).g ∧ (Inkproof.Scene.Color.ofHsl h 0 l a).g = (Inkproof.Scene.Color.ofHsl h 0 l a).b
+def Inkproof.Scene.Color.over : Inkproof.Scene.Color → Inkproof.Scene.Color → Inkproof.Scene.Color
+theorem Inkproof.Scene.Color.over_a_toNat : ∀ (s d : Inkproof.Scene.Color), (s.over d).a.toNat = (255 * s.a.toNat + d.a.toNat * (255 - s.a.toNat) + 127) / 255
+theorem Inkproof.Scene.Color.over_opaque : ∀ {s : Inkproof.Scene.Color}, s.a = 255 → ∀ (d : Inkproof.Scene.Color), s.over d = s
 field Inkproof.Scene.Color.r : Inkproof.Scene.Color → UInt8
 structure Inkproof.Scene.Column : Type
 field Inkproof.Scene.Column.hi : Inkproof.Scene.Column → Rat
@@ -496,6 +499,7 @@ theorem Inkproof.Scene.joinRun_stepBefore : ∀ (a b : Inkproof.Scene.Pt) (rest 
 theorem Inkproof.Scene.joinRun_straight : ∀ (r : List Inkproof.Scene.Pt), Inkproof.Scene.joinRun Inkproof.Scene.Join.straight r = r
 def Inkproof.Scene.joinRuns : Inkproof.Scene.Join → List (List Inkproof.Scene.Pt) → List (List Inkproof.Scene.Pt)
 theorem Inkproof.Scene.joinRuns_straight : ∀ (rs : List (List Inkproof.Scene.Pt)), Inkproof.Scene.joinRuns Inkproof.Scene.Join.straight rs = rs
+theorem Inkproof.Scene.last_covering_eq_winner : ∀ (dl : Inkproof.Scene.DisplayList) (px : Inkproof.Scene.Pixel), (List.filter (fun c => c.shape.meetsB px.window) dl.paintOrder).getLast? = Inkproof.Scene.winner (fun c => c.shape.meetsB px.window) dl.toList
 def Inkproof.Scene.lengthBound : Inkproof.Scene.Pt → Rat
 theorem Inkproof.Scene.lengthBound_pos : ∀ (f : Inkproof.Scene.Pt), 0 < f.x * f.x + f.y * f.y → 0 < Inkproof.Scene.lengthBound f
 theorem Inkproof.Scene.lengthBound_sq_le : ∀ (f : Inkproof.Scene.Pt), Inkproof.Scene.lengthBound f * Inkproof.Scene.lengthBound f ≤ f.x * f.x + f.y * f.y
@@ -519,13 +523,15 @@ theorem Inkproof.Scene.mem_envelopeColumns : ∀ {β : Type v} (proj : Inkproof.
 theorem Inkproof.Scene.mem_envelopeItems : ∀ (f : Bool) (l : List (Option Inkproof.Scene.Column)) (c : Inkproof.Scene.Column), Inkproof.Scene.Item.val c ∈ Inkproof.Scene.envelopeItems f l ↔ Option.some c ∈ l
 theorem Inkproof.Scene.mem_joinRun : ∀ (j : Inkproof.Scene.Join) (r : List Inkproof.Scene.Pt) {q : Inkproof.Scene.Pt}, q ∈ r → q ∈ Inkproof.Scene.joinRun j r
 theorem Inkproof.Scene.mul_self_nonneg' : ∀ (r : Rat), 0 ≤ r * r
+def Inkproof.Scene.overChannel : Nat → Nat → Nat → UInt8 → UInt8 → UInt8
+theorem Inkproof.Scene.overChannel_toNat : ∀ (sa da : Nat) (cs cd : UInt8), (Inkproof.Scene.overChannel sa da (255 * sa + da * (255 - sa)) cs cd).toNat = if 255 * sa + da * (255 - sa) = 0 then 0 else (2 * (cs.toNat * sa * 255 + cd.toNat * da * (255 - sa)) + (255 * sa + da * (255 - sa))) / (2 * (255 * sa + da * (255 - sa)))
 def Inkproof.Scene.paintOver : (Inkproof.Scene.Command → Bool) → Inkproof.Scene.Pixel → Inkproof.Scene.Color → List Inkproof.Scene.Command → Inkproof.Scene.Color
-theorem Inkproof.Scene.paintOver_eq : ∀ (cov : Inkproof.Scene.Command → Bool) (px : Inkproof.Scene.Pixel) (bg : Inkproof.Scene.Color) (cmds : List Inkproof.Scene.Command), Inkproof.Scene.paintOver cov px bg cmds = match (List.filter cov cmds).getLast? with | Option.some c => c.colorAt px | Option.none => bg
+theorem Inkproof.Scene.paintOver_eq_foldl : ∀ (cov : Inkproof.Scene.Command → Bool) (px : Inkproof.Scene.Pixel) (bg : Inkproof.Scene.Color) (cmds : List Inkproof.Scene.Command), Inkproof.Scene.paintOver cov px bg cmds = List.foldl (fun acc c => (c.colorAt px).over acc) bg (List.filter cov cmds)
 theorem Inkproof.Scene.parallelogram_sub_tris : ∀ (a e f : Inkproof.Scene.Pt) (u v : Rat), 0 ≤ u → u ≤ 1 → 0 ≤ v → v ≤ 1 → have p := { x := a.x + u * e.x + v * f.x, y := a.y + u * e.y + v * f.y }; { a := a, b := { x := a.x + e.x, y := a.y + e.y }, c := { x := a.x + f.x, y := a.y + f.y } }.region p ∨ { a := { x := a.x + e.x + f.x, y := a.y + e.y + f.y }, b := { x := a.x + f.x, y := a.y + f.y }, c := { x := a.x + e.x, y := a.y + e.y } }.region p
 def Inkproof.Scene.pixelColor : Inkproof.Scene.DisplayList → Inkproof.Scene.Color → Inkproof.Scene.Pixel → Inkproof.Scene.Color
-theorem Inkproof.Scene.pixelColor_covered : ∀ {dl : Inkproof.Scene.DisplayList} {bg : Inkproof.Scene.Color} {px : Inkproof.Scene.Pixel} {c : Inkproof.Scene.Command}, c ∈ dl → c.Covers px → ∃ c', c' ∈ dl ∧ c'.Covers px ∧ Inkproof.Scene.pixelColor dl bg px = c'.colorAt px ∧ c.layer ≤ c'.layer
-theorem Inkproof.Scene.pixelColor_eq_paintOver : ∀ (dl : Inkproof.Scene.DisplayList) (bg : Inkproof.Scene.Color) (px : Inkproof.Scene.Pixel), Inkproof.Scene.pixelColor dl bg px = Inkproof.Scene.paintOver (fun c => c.shape.meetsB px.window) px bg dl.paintOrder
-theorem Inkproof.Scene.pixelColor_of_covers : ∀ {dl : Inkproof.Scene.DisplayList} {bg : Inkproof.Scene.Color} {px : Inkproof.Scene.Pixel}, dl.Covers px → ∃ l1 c l2, dl.toList = l1 ++ c :: l2 ∧ c.Covers px ∧ Inkproof.Scene.pixelColor dl bg px = c.colorAt px ∧ (∀ (c' : Inkproof.Scene.Command), c' ∈ l1 → c'.Covers px → c'.layer ≤ c.layer) ∧ ∀ (c' : Inkproof.Scene.Command), c' ∈ l2 → c'.Covers px → c'.layer < c.layer
+theorem Inkproof.Scene.pixelColor_covered : ∀ {dl : Inkproof.Scene.DisplayList} {bg : Inkproof.Scene.Color} {px : Inkproof.Scene.Pixel} {c : Inkproof.Scene.Command}, c ∈ dl → c.Covers px → ∃ c', c' ∈ dl ∧ c'.Covers px ∧ ((c'.colorAt px).a = 255 → Inkproof.Scene.pixelColor dl bg px = c'.colorAt px) ∧ c.layer ≤ c'.layer
+theorem Inkproof.Scene.pixelColor_eq_foldl : ∀ (dl : Inkproof.Scene.DisplayList) (bg : Inkproof.Scene.Color) (px : Inkproof.Scene.Pixel), Inkproof.Scene.pixelColor dl bg px = List.foldl (fun acc c => (c.colorAt px).over acc) bg (List.filter (fun c => c.shape.meetsB px.window) dl.paintOrder)
+theorem Inkproof.Scene.pixelColor_of_covers : ∀ {dl : Inkproof.Scene.DisplayList} {bg : Inkproof.Scene.Color} {px : Inkproof.Scene.Pixel}, dl.Covers px → ∃ l1 c l2, dl.toList = l1 ++ c :: l2 ∧ c.Covers px ∧ ((c.colorAt px).a = 255 → Inkproof.Scene.pixelColor dl bg px = c.colorAt px) ∧ (∀ (c' : Inkproof.Scene.Command), c' ∈ l1 → c'.Covers px → c'.layer ≤ c.layer) ∧ ∀ (c' : Inkproof.Scene.Command), c' ∈ l2 → c'.Covers px → c'.layer < c.layer
 theorem Inkproof.Scene.pixelColor_of_not_covers : ∀ {dl : Inkproof.Scene.DisplayList} {bg : Inkproof.Scene.Color} {px : Inkproof.Scene.Pixel}, ¬dl.Covers px → Inkproof.Scene.pixelColor dl bg px = bg
 def Inkproof.Scene.placeAxisTitle : Inkproof.Scene.Side → Inkproof.Scene.Rect → Rat → Rat → String → Inkproof.Scene.PlacedLabel
 theorem Inkproof.Scene.placeAxisTitle_across : ∀ (side : Inkproof.Scene.Side) (r : Inkproof.Scene.Rect) (extent gap : Rat) (text : String), side.outward * (side.across (Inkproof.Scene.placeAxisTitle side r extent gap text).anchor - side.edge r) = extent + gap
@@ -547,7 +553,7 @@ theorem Inkproof.Scene.reduceRun_spec : ∀ {G : List Inkproof.Scene.Pt}, G ≠ 
 def Inkproof.Scene.render : Inkproof.Scene.DisplayList → Inkproof.Scene.Grid → Inkproof.Scene.Color → Inkproof.Scene.Image
 theorem Inkproof.Scene.render_get? : ∀ (dl : Inkproof.Scene.DisplayList) (g : Inkproof.Scene.Grid) (bg : Inkproof.Scene.Color) {px : Inkproof.Scene.Pixel}, g.Has px → (Inkproof.Scene.render dl g bg).get? px.col px.row = Option.some (Inkproof.Scene.pixelColor dl bg px)
 theorem Inkproof.Scene.render_get?_out : ∀ (dl : Inkproof.Scene.DisplayList) (g : Inkproof.Scene.Grid) (bg : Inkproof.Scene.Color) {px : Inkproof.Scene.Pixel}, ¬g.Has px → (Inkproof.Scene.render dl g bg).get? px.col px.row = Option.none
-theorem Inkproof.Scene.render_spike : ∀ {dl : Inkproof.Scene.DisplayList} {bg : Inkproof.Scene.Color} {c : Inkproof.Scene.Command}, c ∈ dl → ∀ {hw : Rat} {items : List (Inkproof.Scene.Item Inkproof.Scene.Pt)}, c.shape = Inkproof.Scene.Shape.strip hw items → ∀ {a : Inkproof.Scene.Pt}, Inkproof.Scene.Item.val a ∈ items → ∀ {px : Inkproof.Scene.Pixel}, px.Contains a → ∃ c', c' ∈ dl ∧ c'.Covers px ∧ Inkproof.Scene.pixelColor dl bg px = c'.colorAt px ∧ c.layer ≤ c'.layer
+theorem Inkproof.Scene.render_spike : ∀ {dl : Inkproof.Scene.DisplayList} {bg : Inkproof.Scene.Color} {c : Inkproof.Scene.Command}, c ∈ dl → ∀ {hw : Rat} {items : List (Inkproof.Scene.Item Inkproof.Scene.Pt)}, c.shape = Inkproof.Scene.Shape.strip hw items → ∀ {a : Inkproof.Scene.Pt}, Inkproof.Scene.Item.val a ∈ items → ∀ {px : Inkproof.Scene.Pixel}, px.Contains a → ∃ c', c' ∈ dl ∧ c'.Covers px ∧ ((c'.colorAt px).a = 255 → Inkproof.Scene.pixelColor dl bg px = c'.colorAt px) ∧ c.layer ≤ c'.layer
 def Inkproof.Scene.runsOf : List (Option Inkproof.Scene.Pt) → List (List Inkproof.Scene.Pt)
 theorem Inkproof.Scene.runsOf_flatten : ∀ (l : List (Option Inkproof.Scene.Pt)), (Inkproof.Scene.runsOf l).flatten = List.filterMap id l
 def Inkproof.Scene.segDiscB : Inkproof.Scene.Pt → Inkproof.Scene.Pt → Inkproof.Scene.Pt → Rat → Bool

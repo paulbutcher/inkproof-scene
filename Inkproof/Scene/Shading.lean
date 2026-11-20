@@ -34,6 +34,76 @@ def lerpChannel (a b : UInt8) (w : Rat) : UInt8 :=
 def Color.lerp (a b : Color) (w : Rat) : Color :=
   ⟨lerpChannel a.r b.r w, lerpChannel a.g b.g w, lerpChannel a.b b.b w, lerpChannel a.a b.a w⟩
 
+/-- The channel of `s` painted over `d`, given the alpha `sa` of `s`, the alpha `da` of `d` and `k`,
+255 times the combined alpha: the exact quotient, rounded half up. A fully transparent result has
+no colour. -/
+def overChannel (sa da k : Nat) (cs cd : UInt8) : UInt8 :=
+  if k = 0 then 0
+  else UInt8.ofNat ((2 * (cs.toNat * sa * 255 + cd.toNat * da * (255 - sa)) + k) / (2 * k))
+
+/-- `s` painted over `d`, both with straight (not premultiplied) alpha: the source-over composite,
+with alpha `sa + da * (1 - sa)` and each colour channel the alpha-weighted mean of the two, each
+channel rounded half up once. -/
+def Color.over (s d : Color) : Color :=
+  let sa := s.a.toNat
+  let da := d.a.toNat
+  let k := 255 * sa + da * (255 - sa)
+  ⟨overChannel sa da k s.r d.r, overChannel sa da k s.g d.g, overChannel sa da k s.b d.b,
+    UInt8.ofNat ((k + 127) / 255)⟩
+
+private theorem overChannel_opaque (da : Nat) (cs cd : UInt8) :
+    overChannel 255 da (255 * 255 + da * (255 - 255)) cs cd = cs := by
+  have h := cs.toNat_lt
+  simp only [overChannel, Nat.sub_self, Nat.mul_zero, Nat.add_zero, Nat.mul_zero]
+  split
+  · omega
+  have : (2 * (cs.toNat * 255 * 255) + 255 * 255) / (2 * (255 * 255)) = cs.toNat := by omega
+  rw [this]; simp
+
+/-- A fully opaque source hides what is under it. -/
+theorem Color.over_opaque {s : Color} (h : s.a = 255) (d : Color) : s.over d = s := by
+  have : s.a.toNat = 255 := by simp [h]
+  simp only [Color.over, this, overChannel_opaque]
+  cases s; simp_all
+
+/-- The alpha of `s` painted over `d` is `sa + da * (1 - sa)` in 8-bit units, rounded half up. -/
+theorem Color.over_a_toNat (s d : Color) :
+    (s.over d).a.toNat = (255 * s.a.toNat + d.a.toNat * (255 - s.a.toNat) + 127) / 255 := by
+  have hs := s.a.toNat_lt
+  have hd := d.a.toNat_lt
+  simp only [Color.over, UInt8.toNat_ofNat']
+  apply Nat.mod_eq_of_lt
+  have : d.a.toNat * (255 - s.a.toNat) ≤ 255 * (255 - s.a.toNat) :=
+    Nat.mul_le_mul_right _ (by omega)
+  omega
+
+/-- A colour channel of `s` painted over `d` is the alpha-weighted mean of the two channels,
+rounded half up, or zero when the result has no alpha. -/
+theorem overChannel_toNat (sa da : Nat) (cs cd : UInt8) :
+    (overChannel sa da (255 * sa + da * (255 - sa)) cs cd).toNat =
+      if 255 * sa + da * (255 - sa) = 0 then 0
+      else (2 * (cs.toNat * sa * 255 + cd.toNat * da * (255 - sa)) + (255 * sa + da * (255 - sa))) /
+        (2 * (255 * sa + da * (255 - sa))) := by
+  have hc := cs.toNat_lt
+  have hd := cd.toNat_lt
+  unfold overChannel
+  split
+  · simp_all
+  · rename_i hk
+    simp only [UInt8.toNat_ofNat']
+    apply Nat.mod_eq_of_lt
+    rw [Nat.div_lt_iff_lt_mul (by omega)]
+    have h1 : cs.toNat * sa * 255 ≤ 255 * (sa * 255) := by
+      have : cs.toNat * sa ≤ 255 * sa := Nat.mul_le_mul_right _ (by omega)
+      calc cs.toNat * sa * 255 ≤ 255 * sa * 255 := Nat.mul_le_mul_right _ this
+        _ = 255 * (sa * 255) := by simp only [Nat.mul_assoc]
+    have h2 : cd.toNat * da * (255 - sa) ≤ 255 * (da * (255 - sa)) := by
+      have : cd.toNat * da ≤ 255 * da := Nat.mul_le_mul_right _ (by omega)
+      calc cd.toNat * da * (255 - sa) ≤ 255 * da * (255 - sa) := Nat.mul_le_mul_right _ this
+        _ = 255 * (da * (255 - sa)) := by simp only [Nat.mul_assoc]
+    have : 255 * sa = sa * 255 := Nat.mul_comm _ _
+    omega
+
 /-- The colour at `t` of the stops that follow `s`: the first stop's colour up to it, the last
 stop's colour after it, and between two stops a blend in proportion to the distance along. -/
 def evalStops (s : Stop) : List Stop → Rat → Color

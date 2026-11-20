@@ -19,7 +19,7 @@ The display list for Inkproof charts, the compilers that produce it, and a refer
 - Clip a display list to a rectangle: `DisplayList.clip`, `Command.clip`, `Shape.clip`, `Rect.meet`.
 - Find which commands paint a pixel, and in what order: `DisplayList.paintOrder`, `DisplayList.Covers`, `Command.Covers`, `winner`.
 - State exactly which pixels a shape covers (the raster model a GPU renderer must match): `Shape.region`, `Region`, `Region.Covers`, `Pixel`, `Window`, `Grid`.
-- Rasterize a display list to an image, the reference for any other renderer: `render`, `pixelColor`, `Image`.
+- Rasterize a display list to an image, the reference for any other renderer: `render`, `pixelColor`, `Image`; translucent commands composite source-over in paint order, `Color.over`.
 - Draw an axis along a side of the plot: the axis line, a tick mark and optional gridline at each tick, and the labels Axis's `layoutLabels` keeps, placed for the host's text layer; any scale, since ticks are placed by a projection: `compileAxis`, `AxisStyle`, `Side`, `PlacedLabel`, `AxisDrawing`.
 - Draw an axis for a linear, log or categorical scale in one call, choosing ticks, formatting and thinning labels: `compileLinearAxis`, `compileLogAxis`, `compileCategoricalAxis` (ticks at band centres, `bandCentrePixel`), `TickSpec`; for a scale of unix seconds, with ticks at clock intervals and UTC time labels, `compileTimeAxis`; for ticks already in pixels, `compilePixelAxis`.
 - Fill or stroke a shape with a colour that varies along x or y between stops, given in data units through a projection: `Shading`, `Projection.gradientY`, `Projection.gradientX`, `Shading.at`.

@@ -106,7 +106,22 @@ def renderTests : List TestCase := [
       check ((paintedPixels img).all fun (c, r) => 1 ≤ c && c ≤ 5 && r ≤ 4)
         "outside the scissor",
 
-  .mk "a thicker line paints every pixel a thinner one does" <|
+  .mk "a translucent command over an opaque one mixes them, over the background keeps its alpha" do
+    let r : Shape := .rect ⟨1, 1, 4, 4⟩
+    let half : Color := ⟨0, 0, 255, 128⟩
+    let img := draw [cmd 0 red r, cmd 1 half r]
+    let mixed := at' img 2 2
+    check (mixed.a == 255) "opaque below must stay opaque" *>
+    check (mixed.r > 100 && mixed.r < 150 && mixed.b > 100 && mixed.b < 150) "not an even mix" *>
+    check (at' (draw [cmd 0 half r]) 2 2 == half) "alone over a transparent background",
+
+  .mk "compositing follows paint order, not list order" do
+    let r : Shape := .rect ⟨1, 1, 4, 4⟩
+    let half : Color := ⟨0, 0, 255, 128⟩
+    check (at' (draw [cmd 1 half r, cmd 0 red r]) 2 2 == at' (draw [cmd 0 red r, cmd 1 half r]) 2 2)
+      "layer order ignored"
+
+  ,.mk "a thicker line paints every pixel a thinner one does" <|
     forAll 100 (fun g => let (a, g) := genPt g; let (b, g) := genPt g; ((a, b), g)) fun (a, b) =>
       let thin := draw [cmd 0 red (.strip (1 / 4) [.val a, .val b])]
       let thick := draw [cmd 0 red (.strip (3 / 2) [.val a, .val b])]
