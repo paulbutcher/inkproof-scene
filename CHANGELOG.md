@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.22.0
+
+- `Shading.steps` and `Projection.stepsX`/`stepsY` shade with hard-edged stops: each stop's colour holds until the next.
+
 ## v0.21.0
 
 - `render` composites each command over what is beneath it with source-over alpha blending, rounded half up once per command; opaque commands render as before.
