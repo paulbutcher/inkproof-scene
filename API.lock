@@ -188,6 +188,10 @@ def Inkproof.Scene.Projection.linear : Inkproof.Scale.Linear Rat → Inkproof.Sc
 constructor Inkproof.Scene.Projection.mk : {α : Type u} → {β : Type v} → (α → Rat) → (β → Rat) → Inkproof.Scene.Projection α β
 def Inkproof.Scene.Projection.points : {α : Type u} → {β : Type v} → [inst : LE α] → Inkproof.Scene.Projection α β → Inkproof.Core.Series α β → List (Option Inkproof.Scene.Pt)
 def Inkproof.Scene.Projection.runs : {α : Type u} → {β : Type v} → [inst : LE α] → Inkproof.Scene.Projection α β → Inkproof.Core.Segmented α β → List (List Inkproof.Scene.Pt)
+def Inkproof.Scene.Projection.stepsX : {α : Type u} → {β : Type v} → Inkproof.Scene.Projection α β → α × Inkproof.Scene.Color → List (α × Inkproof.Scene.Color) → Inkproof.Scene.Shading
+theorem Inkproof.Scene.Projection.stepsX_at : ∀ {α : Type u} {β : Type v} (proj : Inkproof.Scene.Projection α β) (first : α × Inkproof.Scene.Color) (rest : List (α × Inkproof.Scene.Color)), List.Pairwise (fun a b => proj.x a.fst < proj.x b.fst) (first :: rest) → ∀ {s : α × Inkproof.Scene.Color}, s ∈ first :: rest → ∀ {px : Inkproof.Scene.Pixel}, ↑px.col + 1 / 2 = proj.x s.fst → (proj.stepsX first rest).at px = s.snd
+def Inkproof.Scene.Projection.stepsY : {α : Type u} → {β : Type v} → Inkproof.Scene.Projection α β → β × Inkproof.Scene.Color → List (β × Inkproof.Scene.Color) → Inkproof.Scene.Shading
+theorem Inkproof.Scene.Projection.stepsY_at : ∀ {α : Type u} {β : Type v} (proj : Inkproof.Scene.Projection α β) (first : β × Inkproof.Scene.Color) (rest : List (β × Inkproof.Scene.Color)), List.Pairwise (fun a b => proj.y a.fst < proj.y b.fst) (first :: rest) → ∀ {s : β × Inkproof.Scene.Color}, s ∈ first :: rest → ∀ {px : Inkproof.Scene.Pixel}, ↑px.row + 1 / 2 = proj.y s.fst → (proj.stepsY first rest).at px = s.snd
 field Inkproof.Scene.Projection.x : {α : Type u} → {β : Type v} → Inkproof.Scene.Projection α β → α → Rat
 field Inkproof.Scene.Projection.y : {α : Type u} → {β : Type v} → Inkproof.Scene.Projection α β → β → Rat
 structure Inkproof.Scene.Pt : Type
@@ -251,8 +255,11 @@ def Inkproof.Scene.Shading.at : Inkproof.Scene.Shading → Inkproof.Scene.Pixel 
 theorem Inkproof.Scene.Shading.at_flat : ∀ (c : Inkproof.Scene.Color) (px : Inkproof.Scene.Pixel), (Inkproof.Scene.Shading.flat c).at px = c
 theorem Inkproof.Scene.Shading.at_gradient_x : ∀ (s : Inkproof.Scene.Stop) (rest : List Inkproof.Scene.Stop) (px : Inkproof.Scene.Pixel), (Inkproof.Scene.Shading.gradient Inkproof.Scene.GradientAxis.x s rest).at px = Inkproof.Scene.evalStops s rest (↑px.col + 1 / 2)
 theorem Inkproof.Scene.Shading.at_gradient_y : ∀ (s : Inkproof.Scene.Stop) (rest : List Inkproof.Scene.Stop) (px : Inkproof.Scene.Pixel), (Inkproof.Scene.Shading.gradient Inkproof.Scene.GradientAxis.y s rest).at px = Inkproof.Scene.evalStops s rest (↑px.row + 1 / 2)
+theorem Inkproof.Scene.Shading.at_steps_x : ∀ (s : Inkproof.Scene.Stop) (rest : List Inkproof.Scene.Stop) (px : Inkproof.Scene.Pixel), (Inkproof.Scene.Shading.steps Inkproof.Scene.GradientAxis.x s rest).at px = Inkproof.Scene.evalSteps s rest (↑px.col + 1 / 2)
+theorem Inkproof.Scene.Shading.at_steps_y : ∀ (s : Inkproof.Scene.Stop) (rest : List Inkproof.Scene.Stop) (px : Inkproof.Scene.Pixel), (Inkproof.Scene.Shading.steps Inkproof.Scene.GradientAxis.y s rest).at px = Inkproof.Scene.evalSteps s rest (↑px.row + 1 / 2)
 constructor Inkproof.Scene.Shading.flat : Inkproof.Scene.Color → Inkproof.Scene.Shading
 constructor Inkproof.Scene.Shading.gradient : Inkproof.Scene.GradientAxis → Inkproof.Scene.Stop → List Inkproof.Scene.Stop → Inkproof.Scene.Shading
+constructor Inkproof.Scene.Shading.steps : Inkproof.Scene.GradientAxis → Inkproof.Scene.Stop → List Inkproof.Scene.Stop → Inkproof.Scene.Shading
 inductive Inkproof.Scene.Shape : Type
 constructor Inkproof.Scene.Shape.area : Rat → List (Inkproof.Scene.Item Inkproof.Scene.Pt) → Inkproof.Scene.Shape
 theorem Inkproof.Scene.Shape.brecOn.eq : ∀ {motive : Inkproof.Scene.Shape → Sort u} (t : Inkproof.Scene.Shape) (F_1 : (t : Inkproof.Scene.Shape) → Inkproof.Scene.Shape.below t → motive t), Inkproof.Scene.Shape.brecOn t F_1 = F_1 t (Inkproof.Scene.Shape.brecOn.go t F_1).2
@@ -402,6 +409,9 @@ theorem Inkproof.Scene.emit_straight : ∀ (p a b n : Inkproof.Scene.Pt), Inkpro
 def Inkproof.Scene.envelopeColumns : {β : Type v} → Inkproof.Scene.Projection Nat β → Array (Option (β × β)) → List (Option Inkproof.Scene.Column)
 def Inkproof.Scene.envelopeItems : Bool → List (Option Inkproof.Scene.Column) → List (Inkproof.Scene.Item Inkproof.Scene.Column)
 theorem Inkproof.Scene.envelopeItems_no_bridge : ∀ (f : Bool) (l : List (Option Inkproof.Scene.Column)) {p : Inkproof.Scene.Pt}, Inkproof.Scene.Item.chain (fun c => Inkproof.Scene.Region.span c.x c.x c.lo c.lo c.hi c.hi) (fun a b => Inkproof.Scene.Region.span a.x b.x a.lo b.lo a.hi b.hi) (Inkproof.Scene.envelopeItems f l) p → (∃ c, Option.some c ∈ l ∧ Inkproof.Scene.Region.span c.x c.x c.lo c.lo c.hi c.hi p) ∨ ∃ a b, [Option.some a, Option.some b] <:+: l ∧ Inkproof.Scene.Region.span a.x b.x a.lo b.lo a.hi b.hi p
+def Inkproof.Scene.evalSteps : Inkproof.Scene.Stop → List Inkproof.Scene.Stop → Rat → Inkproof.Scene.Color
+theorem Inkproof.Scene.evalSteps_at : ∀ (s : Inkproof.Scene.Stop) (rest : List Inkproof.Scene.Stop), List.Pairwise (fun x1 x2 => x1.pos < x2.pos) (s :: rest) → ∀ (n : Inkproof.Scene.Stop), n ∈ s :: rest → Inkproof.Scene.evalSteps s rest n.pos = n.color
+theorem Inkproof.Scene.evalSteps_before : ∀ (s n : Inkproof.Scene.Stop) (rest : List Inkproof.Scene.Stop) {t : Rat}, t < n.pos → Inkproof.Scene.evalSteps s (n :: rest) t = s.color
 def Inkproof.Scene.evalStops : Inkproof.Scene.Stop → List Inkproof.Scene.Stop → Rat → Inkproof.Scene.Color
 theorem Inkproof.Scene.evalStops_after : ∀ (s : Inkproof.Scene.Stop) (rest : List Inkproof.Scene.Stop), List.Pairwise (fun x1 x2 => x1.pos < x2.pos) (s :: rest) → ∀ {t : Rat}, (∀ (n : Inkproof.Scene.Stop), n ∈ s :: rest → n.pos ≤ t) → Inkproof.Scene.evalStops s rest t = ((s :: rest).getLast ⋯).color
 theorem Inkproof.Scene.evalStops_at : ∀ (s : Inkproof.Scene.Stop) (rest : List Inkproof.Scene.Stop), List.Pairwise (fun x1 x2 => x1.pos < x2.pos) (s :: rest) → ∀ (n : Inkproof.Scene.Stop), n ∈ s :: rest → Inkproof.Scene.evalStops s rest n.pos = n.color

@@ -113,6 +113,12 @@ def evalStops (s : Stop) : List Stop → Rat → Color
     else if t ≤ n.pos then s.color.lerp n.color ((t - s.pos) / (n.pos - s.pos))
     else evalStops n rest t
 
+/-- The colour at `t` of the stops that follow `s`, each stop's colour holding until the next stop's
+position, where the colour changes at once. -/
+def evalSteps (s : Stop) : List Stop → Rat → Color
+  | [], _ => s.color
+  | n :: rest, t => if n.pos ≤ t then evalSteps n rest t else s.color
+
 /-- What fills a command's shape: one colour everywhere, or a colour that varies along an axis
 between stops, given by position in ascending order. -/
 inductive Shading where
@@ -120,6 +126,9 @@ inductive Shading where
   /-- The colour of a pixel is evaluated at its centre: before the first stop and after the last
   it is that stop's colour. -/
   | gradient (axis : GradientAxis) (first : Stop) (rest : List Stop)
+  /-- As `gradient`, but a stop's colour holds up to the next stop's position, where it changes at
+  once to the next stop's colour (`evalSteps`). -/
+  | steps (axis : GradientAxis) (first : Stop) (rest : List Stop)
   deriving Repr
 
 instance : Coe Color Shading := ⟨Shading.flat⟩
@@ -129,6 +138,8 @@ def Shading.at : Shading → Pixel → Color
   | .flat c, _ => c
   | .gradient .x s rest, px => evalStops s rest ((px.col : Rat) + 1 / 2)
   | .gradient .y s rest, px => evalStops s rest ((px.row : Rat) + 1 / 2)
+  | .steps .x s rest, px => evalSteps s rest ((px.col : Rat) + 1 / 2)
+  | .steps .y s rest, px => evalSteps s rest ((px.row : Rat) + 1 / 2)
 
 theorem Shading.at_flat (c : Color) (px : Pixel) : (Shading.flat c).at px = c := rfl
 
@@ -137,6 +148,12 @@ theorem Shading.at_gradient_x (s : Stop) (rest : List Stop) (px : Pixel) :
 
 theorem Shading.at_gradient_y (s : Stop) (rest : List Stop) (px : Pixel) :
     (Shading.gradient .y s rest).at px = evalStops s rest ((px.row : Rat) + 1 / 2) := rfl
+
+theorem Shading.at_steps_x (s : Stop) (rest : List Stop) (px : Pixel) :
+    (Shading.steps .x s rest).at px = evalSteps s rest ((px.col : Rat) + 1 / 2) := rfl
+
+theorem Shading.at_steps_y (s : Stop) (rest : List Stop) (px : Pixel) :
+    (Shading.steps .y s rest).at px = evalSteps s rest ((px.row : Rat) + 1 / 2) := rfl
 
 /-- Between two adjacent stops, the blend of their colours in proportion to the distance along. -/
 theorem evalStops_between (s n : Stop) (rest : List Stop) {t : Rat} (h0 : s.pos < t)
@@ -251,5 +268,31 @@ theorem evalStops_after (s : Stop) (rest : List Stop) (hs : (s :: rest).Pairwise
     · simp only [evalStops, a, b, ite_false]
       rw [ih m hrest (fun n hn => h n (by simp [hn]))]
       simp
+
+/-- Up to the next stop's position, a stop's colour holds. -/
+theorem evalSteps_before (s n : Stop) (rest : List Stop) {t : Rat} (h : t < n.pos) :
+    evalSteps s (n :: rest) t = s.color := by
+  have : ¬ n.pos ≤ t := by grind
+  simp [evalSteps, this]
+
+/-- Stops in ascending order give their own colour at their own position. -/
+theorem evalSteps_at (s : Stop) (rest : List Stop) (hs : (s :: rest).Pairwise (·.pos < ·.pos)) :
+    ∀ n ∈ s :: rest, evalSteps s rest n.pos = n.color := by
+  induction rest generalizing s with
+  | nil => intro n hn; simp at hn; subst hn; simp [evalSteps]
+  | cons m rest ih =>
+    intro n hn
+    have hsm : s.pos < m.pos := (List.pairwise_cons.1 hs).1 m (by simp)
+    have hrest := (List.pairwise_cons.1 hs).2
+    simp only [List.mem_cons] at hn
+    rcases hn with rfl | hn
+    · have : ¬ m.pos ≤ n.pos := by grind
+      simp [evalSteps, this]
+    · have h : m.pos ≤ n.pos := by
+        rcases hn with rfl | hn
+        · grind
+        · exact Rat.le_of_lt ((List.pairwise_cons.1 hrest).1 n hn)
+      simp only [evalSteps, h, ite_true]
+      exact ih m hrest n (by simpa using hn)
 
 end Inkproof.Scene
