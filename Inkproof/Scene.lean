@@ -12,6 +12,7 @@ import Inkproof.Scene.Poly
 import Inkproof.Scene.Reduce
 import Inkproof.Scene.Join
 import Inkproof.Scene.Compile
+import Inkproof.Scene.Stack
 import Inkproof.Scene.Axis
 
 import Inkproof.Scene.Meet

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.20.0
+
+- `compileStackedAreas` and `compileStackedBars` draw the bands between the series of Core's `Series.stack`, each resting on the stacked top below it.
+
 ## v0.19.0
 
 - `Color.ofHsl` makes a colour from hue, saturation, lightness and alpha.

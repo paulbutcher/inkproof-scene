@@ -107,8 +107,41 @@ def millionPointsCompile : TestCase := .mk "compilers handle a million points" <
       "a join changed where the line breaks"
     check ((compileArea paint 0 proj g (.spline 2)).size == 1) "joined area did not compile"
 
+/-- Stacked bars of non-negative series: one bar per present value, and each rests on the bar
+below it at the same x. -/
+def stackedBarsRest : TestCase := .mk "stacked bars rest on the bar below" <|
+  forAll 200 (fun g =>
+    let (n, g) := g.below 12
+    g.array 3 fun g => g.array n fun g =>
+      let (m, g) := g.below 6
+      let (v, g) := g.below 20
+      (if m == 0 then none else some (v : Rat), g)) fun cols => do
+    let mk (vs : Array (Option Rat)) : Option (Series Nat Rat) :=
+      match Series.ofPoints? (vs.mapIdx fun i v => (i, v)) with
+      | .ok s => some s
+      | .error _ => none
+    let ss := cols.filterMap mk
+    check (ss.size == cols.size) "series rejected"
+    let proj : Projection Nat Rat := ⟨fun x => (x : Rat), id⟩
+    let bars := compileStackedBars (fun k => ⟨k, Color.mk 0 0 0 255⟩) 1 proj ss
+    check (bars.size == (cols.toList.map fun vs => (vs.filter Option.isSome).size).sum)
+      "wrong number of bars"
+    let boxAt (k i : Nat) : Option Rect :=
+      bars.findSome? fun c => match c.shape with
+        | .rect b => if c.layer == k && b.x0 == (i : Rat) - 1 / 2 then some b else none
+        | _ => none
+    for k in [1:cols.size] do
+      match cols[k]?, cols[k - 1]? with
+      | some here, some below =>
+        for i in [0:here.size] do
+          if (here[i]?).any Option.isSome && (below[i]?).any Option.isSome then
+            match boxAt k i, boxAt (k - 1) i with
+            | some up, some low => check (up.y0 == low.y1) "bar does not rest on the one below"
+            | _, _ => check false "bar missing"
+      | _, _ => check false "series missing"
+
 def tests : List TestCase :=
   [reductionKeepsWhatMatters, spikeSurvives, scatterOnePerSample, scatterByRadiusPerValue, dashesStayWithinPattern,
-    dashesCoverEveryPeriod, millionPointsCompile]
+    dashesCoverEveryPeriod, millionPointsCompile, stackedBarsRest]
 
 end InkproofSceneTest.CompileTests
