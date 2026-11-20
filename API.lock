@@ -28,11 +28,20 @@ field Inkproof.Scene.Color.a : Inkproof.Scene.Color → UInt8
 field Inkproof.Scene.Color.b : Inkproof.Scene.Color → UInt8
 def Inkproof.Scene.Color.contrast : Inkproof.Scene.Color → Inkproof.Scene.Color → Float
 field Inkproof.Scene.Color.g : Inkproof.Scene.Color → UInt8
+def Inkproof.Scene.Color.hslChannels : Rat → Rat → Rat → Rat × Rat × Rat
+theorem Inkproof.Scene.Color.hslChannels_lightness_one : ∀ (h s : Rat), Inkproof.Scene.Color.hslChannels h s 1 = (1, 1, 1)
+theorem Inkproof.Scene.Color.hslChannels_lightness_zero : ∀ (h s : Rat), Inkproof.Scene.Color.hslChannels h s 0 = (0, 0, 0)
+theorem Inkproof.Scene.Color.hslChannels_saturation_zero : ∀ (h l : Rat), (Inkproof.Scene.Color.hslChannels h 0 l).fst = (Inkproof.Scene.Color.hslChannels h 0 l).snd.fst ∧ (Inkproof.Scene.Color.hslChannels h 0 l).snd.fst = (Inkproof.Scene.Color.hslChannels h 0 l).snd.snd
 def Inkproof.Scene.Color.lerp : Inkproof.Scene.Color → Inkproof.Scene.Color → Rat → Inkproof.Scene.Color
 theorem Inkproof.Scene.Color.lerp_one : ∀ (a b : Inkproof.Scene.Color), a.lerp b 1 = b
 theorem Inkproof.Scene.Color.lerp_zero : ∀ (a b : Inkproof.Scene.Color), a.lerp b 0 = a
 def Inkproof.Scene.Color.luminance : Inkproof.Scene.Color → Float
 constructor Inkproof.Scene.Color.mk : UInt8 → UInt8 → UInt8 → UInt8 → Inkproof.Scene.Color
+def Inkproof.Scene.Color.ofHsl : Rat → Rat → Rat → optParam Rat 1 → Inkproof.Scene.Color
+theorem Inkproof.Scene.Color.ofHsl_eq : ∀ (h s l a : Rat), (Inkproof.Scene.Color.ofHsl h s l a).r.toNat = (Inkproof.Float.clamp 0 1 (Inkproof.Scene.Color.hslChannels h s l).fst * 255 + 1 / 2).floor.toNat % 256 ∧ (Inkproof.Scene.Color.ofHsl h s l a).g.toNat = (Inkproof.Float.clamp 0 1 (Inkproof.Scene.Color.hslChannels h s l).snd.fst * 255 + 1 / 2).floor.toNat % 256 ∧ (Inkproof.Scene.Color.ofHsl h s l a).b.toNat = (Inkproof.Float.clamp 0 1 (Inkproof.Scene.Color.hslChannels h s l).snd.snd * 255 + 1 / 2).floor.toNat % 256 ∧ (Inkproof.Scene.Color.ofHsl h s l a).a.toNat = (Inkproof.Float.clamp 0 1 a * 255 + 1 / 2).floor.toNat % 256
+theorem Inkproof.Scene.Color.ofHsl_lightness_one : ∀ (h s a : Rat), (Inkproof.Scene.Color.ofHsl h s 1 a).r = 255 ∧ (Inkproof.Scene.Color.ofHsl h s 1 a).g = 255 ∧ (Inkproof.Scene.Color.ofHsl h s 1 a).b = 255
+theorem Inkproof.Scene.Color.ofHsl_lightness_zero : ∀ (h s a : Rat), (Inkproof.Scene.Color.ofHsl h s 0 a).r = 0 ∧ (Inkproof.Scene.Color.ofHsl h s 0 a).g = 0 ∧ (Inkproof.Scene.Color.ofHsl h s 0 a).b = 0
+theorem Inkproof.Scene.Color.ofHsl_saturation_zero : ∀ (h l a : Rat), (Inkproof.Scene.Color.ofHsl h 0 l a).r = (Inkproof.Scene.Color.ofHsl h 0 l a).g ∧ (Inkproof.Scene.Color.ofHsl h 0 l a).g = (Inkproof.Scene.Color.ofHsl h 0 l a).b
 field Inkproof.Scene.Color.r : Inkproof.Scene.Color → UInt8
 structure Inkproof.Scene.Column : Type
 field Inkproof.Scene.Column.hi : Inkproof.Scene.Column → Rat

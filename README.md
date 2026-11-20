@@ -24,6 +24,7 @@ The display list for Inkproof charts, the compilers that produce it, and a refer
 - Fill or stroke a shape with a colour that varies along x or y between stops, given in data units through a projection: `Shading`, `Projection.gradientY`, `Projection.gradientX`, `Shading.at`.
 - Place an axis title beside an axis, centred along it and clear of the tick labels, turned for a vertical axis: `placeAxisTitle`.
 - Pick colours, dash styles and markers for series in light and dark themes with checked contrast: `Theme`, `Theme.series`, `Theme.seriesStyle`, `Color.contrast`.
+- Make a colour from hue, saturation, lightness and alpha: `Color.ofHsl`.
 
 ## Requiring it
 

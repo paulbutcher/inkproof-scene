@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.19.0
+
+- `Color.ofHsl` makes a colour from hue, saturation, lightness and alpha.
+
 ## v0.18.0
 
 - `Shading` gives a command or chart `Paint` a gradient along x or y between stops, evaluated at each pixel centre; `Command.color` and `Paint.color` are now a `Shading`, which a `Color` converts to.

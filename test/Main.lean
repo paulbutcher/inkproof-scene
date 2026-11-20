@@ -13,4 +13,4 @@ open InkproofTools.Test
 
 def main (args : List String) : IO UInt32 :=
   runTests (platformTest (args.contains "--expect-wasm") ::
-    (InkproofSceneTest.CompileTests.tests ++ InkproofSceneTest.renderTests ++ InkproofSceneTest.paletteTests ++ InkproofSceneTest.AxisTests.tests))
+    (InkproofSceneTest.CompileTests.tests ++ InkproofSceneTest.renderTests ++ InkproofSceneTest.paletteTests ++ InkproofSceneTest.hslTests ++ InkproofSceneTest.AxisTests.tests))
