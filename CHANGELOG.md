@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.21.0
+
+- `render` composites each command over what is beneath it with source-over alpha blending, rounded half up once per command; opaque commands render as before.
+
 ## v0.20.0
 
 - `compileStackedAreas` and `compileStackedBars` draw the bands between the series of Core's `Series.stack`, each resting on the stacked top below it.
