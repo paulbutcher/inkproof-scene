@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.23.0
+
+- `DisplayList.scale` scales a display list by a factor, with theorems that the scaled region and coverage are the original's under the scale.
+
 ## v0.22.1
 
 - `groupByKey` is core's `List.splitBy`, and `mul_self_nonneg'` is derived from core's `sq_nonneg`; behaviour and signatures are unchanged.

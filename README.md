@@ -17,6 +17,7 @@ The display list for Inkproof charts, the compilers that produce it, and a refer
 - Join a line or area's points with steps before or after each point, or a smooth spline through every point, never across a gap: `Join`, `LineStyle.join`, the `join` argument of `compileArea`, `joinRun`.
 - Thin dense line data without changing its look: `reducePoints`, `reduceRun`, `groupByKey`.
 - Clip a display list to a rectangle: `DisplayList.clip`, `Command.clip`, `Shape.clip`, `Rect.meet`.
+- Scale a display list by a factor, e.g. to draw at a device pixel ratio: `DisplayList.scale`, `Command.scale`, `Shape.scale`, `Shading.scale`.
 - Find which commands paint a pixel, and in what order: `DisplayList.paintOrder`, `DisplayList.Covers`, `Command.Covers`, `winner`.
 - State exactly which pixels a shape covers (the raster model a GPU renderer must match): `Shape.region`, `Region`, `Region.Covers`, `Pixel`, `Window`, `Grid`.
 - Rasterize a display list to an image, the reference for any other renderer: `render`, `pixelColor`, `Image`; translucent commands composite source-over in paint order, `Color.over`.

@@ -7,6 +7,7 @@ import Inkproof.Scene.Shading
 import Inkproof.Scene.DisplayList
 import Inkproof.Scene.Coverage
 import Inkproof.Scene.Clip
+import Inkproof.Scene.Scale
 import Inkproof.Scene.Line
 import Inkproof.Scene.Poly
 import Inkproof.Scene.Reduce
