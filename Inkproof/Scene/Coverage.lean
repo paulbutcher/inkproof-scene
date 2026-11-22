@@ -47,11 +47,8 @@ theorem Region.exists_covered {r : Region} {g : Grid} (hw : 0 < g.w) (hh : 0 < g
   | ⟨px, hpx, hc⟩ => ⟨px, hpx, Region.covers_of_mem h hc⟩
 
 theorem mul_self_nonneg' (r : Rat) : 0 ≤ r * r := by
-  rcases (Rat.le_total : 0 ≤ r ∨ r ≤ 0) with h | h
-  · exact Rat.mul_nonneg h h
-  · have h' : 0 ≤ -r := by grind
-    have := Rat.mul_nonneg h' h'
-    grind
+  have := Lean.Grind.OrderedRing.sq_nonneg (a := r)
+  rwa [Lean.Grind.Semiring.pow_two] at this
 
 /-- Thickening only adds points. -/
 theorem Region.sub_thicken (r : Rat) (a : Region) : a.Sub (a.thicken r) := fun p hp =>

@@ -15,26 +15,7 @@ the points of a class cannot be told apart by which pixel columns their x-coordi
 def xKey (x : Rat) : Int := if x.floor = x then 2 * x.floor else 2 * x.floor + 1
 
 /-- Splits a list into maximal runs of adjacent points in the same x class. -/
-def groupByKey : List Pt → List (List Pt)
-  | [] => []
-  | p :: rest =>
-    match groupByKey rest with
-    | (q :: g) :: gs => if xKey p.x = xKey q.x then (p :: q :: g) :: gs else [p] :: (q :: g) :: gs
-    | _ => [[p]]
-
-private def groupStep (p : Pt) : List (List Pt) → List (List Pt)
-  | (q :: g) :: gs => if xKey p.x = xKey q.x then (p :: q :: g) :: gs else [p] :: (q :: g) :: gs
-  | _ => [[p]]
-
-/-- The compiled form of `groupByKey`: a fold, which the compiler runs in constant stack. -/
-private def groupByKeyFold (l : List Pt) : List (List Pt) := l.foldr groupStep []
-
-@[csimp] private theorem groupByKey_eq_fold : @groupByKey = @groupByKeyFold := by
-  funext l
-  show groupByKey l = l.foldr groupStep []
-  induction l with
-  | nil => rfl
-  | cons p rest ih => rw [groupByKey, List.foldr_cons, ← ih]; rfl
+def groupByKey (l : List Pt) : List (List Pt) := l.splitBy fun p q => xKey p.x == xKey q.x
 
 /-- What each point contributes to the aggregates of its run: first, last, lowest and highest. -/
 def measure (p : Pt) : First Pt × Last Pt × Minimum Rat × Maximum Rat :=
@@ -153,41 +134,76 @@ theorem reduceRun_spec {G : List Pt} (hG : G ≠ []) :
   · intro p hp
     exact h2.2 p (by simpa using hp) p.y rfl
 
+private theorem splitBy_loop_spec (l : List Pt) :
+    ∀ (b : Pt) (r : List Pt) (acc : List (List Pt)),
+      (∀ G ∈ acc, ∃ q g, G = q :: g ∧ ∀ p ∈ G, xKey p.x = xKey q.x) →
+      (∀ p ∈ r, xKey p.x = xKey b.x) →
+      let res := List.splitBy.loop (fun p q => xKey p.x == xKey q.x) l b r acc
+      res.flatten = acc.reverse.flatten ++ (r.reverse ++ b :: l) ∧
+      ∀ G ∈ res, ∃ q g, G = q :: g ∧ ∀ p ∈ G, xKey p.x = xKey q.x := by
+  induction l with
+  | nil =>
+    intro b r acc hacc hr
+    have hnil : ∀ G ∈ (b :: r).reverse :: acc, ∃ q g, G = q :: g ∧ ∀ p ∈ G, xKey p.x = xKey q.x := by
+      intro G hG
+      rcases List.mem_cons.mp hG with rfl | hG
+      · obtain ⟨q, g, hqg⟩ : ∃ q g, (b :: r).reverse = q :: g := by
+          cases h : (b :: r).reverse with
+          | nil => simp at h
+          | cons q g => exact ⟨q, g, rfl⟩
+        refine ⟨q, g, hqg, fun p hp => ?_⟩
+        have key : ∀ x ∈ (b :: r).reverse, xKey x.x = xKey b.x := by
+          intro x hx
+          rcases List.mem_cons.mp (List.mem_reverse.mp hx) with rfl | hx
+          · rfl
+          · exact hr x hx
+        rw [hqg] at key
+        rw [key p (hqg ▸ hp), key q (List.mem_cons_self ..)]
+      · exact hacc G hG
+    simp only [List.splitBy.loop]
+    refine ⟨by simp, fun G hG => hnil G ?_⟩
+    simpa [or_comm] using hG
+  | cons a as ih =>
+    intro b r acc hacc hr
+    simp only [List.splitBy.loop]
+    by_cases hk : xKey b.x = xKey a.x
+    · simp only [hk, beq_self_eq_true]
+      have := ih a (b :: r) acc hacc (by
+        intro p hp
+        rcases List.mem_cons.mp hp with rfl | hp
+        · exact hk
+        · exact (hr p hp).trans hk)
+      simpa [List.append_assoc] using this
+    · have hne : (xKey b.x == xKey a.x) = false := by simpa using hk
+      simp only [hne]
+      have hgrp : ∃ q g, (b :: r).reverse = q :: g ∧ ∀ p ∈ (b :: r).reverse, xKey p.x = xKey q.x := by
+        obtain ⟨q, g, hqg⟩ : ∃ q g, (b :: r).reverse = q :: g := by
+          cases h : (b :: r).reverse with
+          | nil => simp at h
+          | cons q g => exact ⟨q, g, rfl⟩
+        have key : ∀ x ∈ (b :: r).reverse, xKey x.x = xKey b.x := by
+          intro x hx
+          rcases List.mem_cons.mp (List.mem_reverse.mp hx) with rfl | hx
+          · rfl
+          · exact hr x hx
+        refine ⟨q, g, hqg, fun p hp => ?_⟩
+        rw [key p hp, key q (hqg ▸ List.mem_cons_self ..)]
+      have := ih a [] ((b :: r).reverse :: acc) (by
+        intro G hG
+        rcases List.mem_cons.mp hG with rfl | hG
+        · exact hgrp
+        · exact hacc G hG) (by simp)
+      simpa [List.append_assoc] using this
+
 /-- `groupByKey` cuts a list into runs, losing and reordering nothing, each of one x class. -/
 theorem groupByKey_spec (l : List Pt) :
     (groupByKey l).flatten = l ∧
     ∀ G ∈ groupByKey l, ∃ q g, G = q :: g ∧ ∀ p ∈ G, xKey p.x = xKey q.x := by
-  induction l with
-  | nil => simp [groupByKey]
-  | cons p rest ih =>
-    obtain ⟨hflat, hgroups⟩ := ih
-    unfold groupByKey
-    cases hg : groupByKey rest with
-    | nil =>
-      simp only [hg, List.flatten_nil] at hflat
-      subst hflat
-      simp
-    | cons G gs =>
-      rw [hg] at hflat hgroups
-      obtain ⟨q, g, rfl, hq⟩ := hgroups _ (List.mem_cons_self ..)
-      simp only [List.flatten_cons, List.cons_append] at hflat
-      by_cases hk : xKey p.x = xKey q.x
-      · simp only [hk, ite_true]
-        refine ⟨by simp [hflat], ?_⟩
-        intro H hH
-        rcases List.mem_cons.mp hH with rfl | hH
-        · refine ⟨p, q :: g, rfl, ?_⟩
-          intro r hr
-          rcases List.mem_cons.mp hr with rfl | hr
-          · rfl
-          · rw [hq r hr, hk]
-        · exact hgroups H (List.mem_cons_of_mem _ hH)
-      · simp only [hk, ite_false]
-        refine ⟨by simp [hflat], ?_⟩
-        intro H hH
-        rcases List.mem_cons.mp hH with rfl | hH
-        · exact ⟨p, [], rfl, by simp⟩
-        · exact hgroups H hH
+  cases l with
+  | nil => simp [groupByKey, List.splitBy]
+  | cons a as =>
+    have := splitBy_loop_spec as a [] [] (by simp) (by simp)
+    simpa [groupByKey, List.splitBy] using this
 
 private structure Profile (k : Int) (lo hi : Rat) (L : List Pt) : Prop where
   ne : L ≠ []

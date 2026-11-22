@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.22.1
+
+- `groupByKey` is core's `List.splitBy`, and `mul_self_nonneg'` is derived from core's `sq_nonneg`; behaviour and signatures are unchanged.
+
 ## v0.22.0
 
 - `Shading.steps` and `Projection.stepsX`/`stepsY` shade with hard-edged stops: each stop's colour holds until the next.

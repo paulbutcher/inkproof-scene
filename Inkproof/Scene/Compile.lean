@@ -278,14 +278,6 @@ private theorem runsOf_spec (l : List (Option Pt)) :
           obtain ⟨rfl, -⟩ := hq
           exact ⟨rest, rfl⟩
 
-private theorem mul_self_eq_zero' {x : Rat} (h : x * x = 0) : x = 0 := by
-  refine Classical.byContradiction fun hx => ?_
-  rcases Rat.le_total (a := 0) (b := x) with h1 | h1
-  · have := Rat.mul_pos (a := x) (b := x) (by grind) (by grind)
-    grind
-  · have := Rat.mul_pos (a := -x) (b := -x) (by grind) (by grind)
-    grind
-
 theorem Region.thicken_zero (a : Region) (p : Pt) : Region.thicken 0 a p ↔ a p := by
   constructor
   · rintro ⟨q, hq, h⟩
@@ -294,8 +286,8 @@ theorem Region.thicken_zero (a : Region) (p : Pt) : Region.thicken 0 a p ↔ a p
     have hy := mul_self_nonneg' (p.y - q.y)
     have hx0 : (p.x - q.x) * (p.x - q.x) = 0 := by grind
     have hy0 : (p.y - q.y) * (p.y - q.y) = 0 := by grind
-    have h1 : p.x - q.x = 0 := mul_self_eq_zero' hx0
-    have h2 : p.y - q.y = 0 := mul_self_eq_zero' hy0
+    have h1 : p.x - q.x = 0 := by grind
+    have h2 : p.y - q.y = 0 := by grind
     have : p = q := by
       cases p; cases q; simp only [Pt.mk.injEq]; grind
     rwa [this]

@@ -125,8 +125,11 @@ def Pt.frame (a f : Pt) (h : Rat) : Pt × Pt × Pt :=
    ⟨(1 + 2 * k) * f.x, (1 + 2 * k) * f.y⟩,
    ⟨-(2 * k) * f.y, 2 * k * f.x⟩)
 
-private theorem eq_of_mul_right {x y z : Rat} (hz : 0 < z) (h : x * z = y * z) : x = y :=
-  Rat.le_antisymm (Rat.le_of_mul_le_mul_right (by grind) hz) (Rat.le_of_mul_le_mul_right (by grind) hz)
+private theorem eq_of_mul_right {x y z : Rat} (hz : 0 < z) (h : x * z = y * z) : x = y := by
+  have hz' : z ≠ 0 := by grind
+  have := Rat.div_mul_cancel (a := x) hz'
+  have := Rat.div_mul_cancel (a := y) hz'
+  grind
 
 /-- A disc about a point of the segment `a + t f` lies in the frame. -/
 theorem frame_param (a f : Pt) (h t : Rat) (hh : 0 < h) (hD : 0 < f.x * f.x + f.y * f.y)

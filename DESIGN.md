@@ -37,4 +37,4 @@ The compilers work on lists and are meant for a tile or a viewport's worth of po
 
 ## Prior art
 
-The square and clamp lemmas, and `clamp` itself, come from `inkproof-float` (`rat_sq_le_sq_of_nonneg`, `rat_abs_le_of_sq_le`, `clamp`, `rat_clamp_mem` and the rest); cancelling a positive factor from an inequality is core's `Rat.le_of_mul_le_mul_right`. Neither core, Std nor the sibling libraries state `0 ≤ r * r` for `Rat`, so `mul_self_nonneg'` stays here.
+The square and clamp lemmas, and `clamp` itself, come from `inkproof-float` (`rat_sq_le_sq_of_nonneg`, `rat_abs_le_of_sq_le`, `clamp`, `rat_clamp_mem` and the rest); cancelling a positive factor from an inequality is core's `Rat.le_of_mul_le_mul_right`. `mul_self_nonneg'` is `Lean.Grind.OrderedRing.sq_nonneg` restated as `r * r`, kept as public API; the cancellation `eq_of_mul_right` and `x * x = 0 → x = 0` are closed by `grind` (Init, no runtime content, so nothing reaches the browser build). `groupByKey` is `List.splitBy` on equal `xKey`, which core runs iteratively, so it needs no fold form; core states no lemmas about `splitBy`, so `groupByKey_spec` is proved here over `splitBy.loop`.
