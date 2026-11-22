@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.24.0
+
+- `DisplayList.scaleSizes` multiplies only strip half widths and marker radii by a factor, and `Shape.view` draws a shape under two linear scales, with a theorem that the two commute.
+
 ## v0.23.0
 
 - `DisplayList.scale` scales a display list by a factor, with theorems that the scaled region and coverage are the original's under the scale.

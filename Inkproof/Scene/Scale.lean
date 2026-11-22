@@ -2,6 +2,7 @@
 Copyright (c) 2026 Paul Butcher. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
+import Inkproof.Scale.Linear
 import Inkproof.Scene.Coverage
 
 namespace Inkproof.Scene
@@ -91,6 +92,110 @@ theorem Shape.scale_clipped (k : Rat) (b : Rect) (s : Shape) :
 theorem DisplayList.scale_toList (k : Rat) (dl : DisplayList) :
     (dl.scale k).toList = dl.toList.map (Command.scale k) := by
   simp [DisplayList.scale]
+
+/-- Only the sizes in pixels scaled by `k`: strip half widths and marker radii. Coordinates, baselines,
+boxes and gradient stops are in whatever units the list is in, so they stay. -/
+def Shape.scaleSizes (k : Rat) : Shape → Shape
+  | .strip hw items => .strip (k * hw) items
+  | .marker m c r => .marker m c (k * r)
+  | .clipped b s => .clipped b (s.scaleSizes k)
+  | s => s
+
+def Command.scaleSizes (k : Rat) (c : Command) : Command := ⟨c.layer, c.color, c.shape.scaleSizes k⟩
+
+/-- The display list with its half widths and radii multiplied by `k`, as when a list in data
+coordinates is drawn at a device pixel ratio. -/
+def DisplayList.scaleSizes (k : Rat) (dl : DisplayList) : DisplayList :=
+  dl.map (Command.scaleSizes k)
+
+theorem Shape.scaleSizes_strip (k hw : Rat) (items : List (Item Pt)) :
+    (Shape.strip hw items).scaleSizes k = .strip (k * hw) items := rfl
+
+theorem Shape.scaleSizes_marker (k : Rat) (m : MarkerShape) (c : Pt) (r : Rat) :
+    (Shape.marker m c r).scaleSizes k = .marker m c (k * r) := rfl
+
+theorem Shape.scaleSizes_clipped (k : Rat) (b : Rect) (s : Shape) :
+    (Shape.clipped b s).scaleSizes k = .clipped b (s.scaleSizes k) := rfl
+
+theorem Shape.scaleSizes_envelope (k : Rat) (items : List (Item Column)) :
+    (Shape.envelope items).scaleSizes k = .envelope items := rfl
+
+theorem Shape.scaleSizes_area (k y0 : Rat) (items : List (Item Pt)) :
+    (Shape.area y0 items).scaleSizes k = .area y0 items := rfl
+
+theorem Shape.scaleSizes_rect (k : Rat) (b : Rect) : (Shape.rect b).scaleSizes k = .rect b := rfl
+
+theorem Shape.scaleSizes_text (k : Rat) (b : Rect) (s : String) :
+    (Shape.text b s).scaleSizes k = .text b s := rfl
+
+theorem Command.scaleSizes_eq (k : Rat) (c : Command) :
+    c.scaleSizes k = ⟨c.layer, c.color, c.shape.scaleSizes k⟩ := rfl
+
+theorem DisplayList.scaleSizes_toList (k : Rat) (dl : DisplayList) :
+    (dl.scaleSizes k).toList = dl.toList.map (Command.scaleSizes k) := by
+  simp [DisplayList.scaleSizes]
+
+theorem DisplayList.scaleSizes_size (k : Rat) (dl : DisplayList) :
+    (dl.scaleSizes k).size = dl.size := by
+  simp [DisplayList.scaleSizes]
+
+/-- The pixel a view of two linear scales puts a data point at. -/
+def Pt.view (sx sy : Inkproof.Scale.Linear Rat) (p : Pt) : Pt := ⟨sx.map p.x, sy.map p.y⟩
+
+/-- A shape in data coordinates drawn under the view of `sx` and `sy`: coordinates go through the
+scales and sizes, already in pixels, stay. -/
+def Shape.view (sx sy : Inkproof.Scale.Linear Rat) : Shape → Shape
+  | .strip hw items => .strip hw (items.map (Item.map (Pt.view sx sy)))
+  | .envelope items =>
+    .envelope (items.map (Item.map fun c => ⟨sx.map c.x, sy.map c.lo, sy.map c.hi⟩))
+  | .area y0 items => .area (sy.map y0) (items.map (Item.map (Pt.view sx sy)))
+  | .rect b => .rect ⟨sx.map b.x0, sy.map b.y0, sx.map b.x1, sy.map b.y1⟩
+  | .marker m c r => .marker m (c.view sx sy) r
+  | .text b s => .text ⟨sx.map b.x0, sy.map b.y0, sx.map b.x1, sy.map b.y1⟩ s
+  | .clipped b s =>
+    .clipped ⟨sx.map b.x0, sy.map b.y0, sx.map b.x1, sy.map b.y1⟩ (s.view sx sy)
+
+theorem Pt.view_eq (sx sy : Inkproof.Scale.Linear Rat) (p : Pt) : p.view sx sy = ⟨sx.map p.x, sy.map p.y⟩ := rfl
+
+theorem Shape.view_strip (sx sy : Inkproof.Scale.Linear Rat) (hw : Rat) (items : List (Item Pt)) :
+    (Shape.strip hw items).view sx sy = .strip hw (items.map (Item.map (Pt.view sx sy))) := rfl
+
+theorem Shape.view_marker (sx sy : Inkproof.Scale.Linear Rat) (m : MarkerShape) (c : Pt) (r : Rat) :
+    (Shape.marker m c r).view sx sy = .marker m (c.view sx sy) r := rfl
+
+theorem Shape.view_envelope (sx sy : Inkproof.Scale.Linear Rat) (items : List (Item Column)) :
+    (Shape.envelope items).view sx sy =
+      .envelope (items.map (Item.map fun c => ⟨sx.map c.x, sy.map c.lo, sy.map c.hi⟩)) := rfl
+
+theorem Shape.view_area (sx sy : Inkproof.Scale.Linear Rat) (y0 : Rat) (items : List (Item Pt)) :
+    (Shape.area y0 items).view sx sy = .area (sy.map y0) (items.map (Item.map (Pt.view sx sy))) := rfl
+
+theorem Shape.view_rect (sx sy : Inkproof.Scale.Linear Rat) (b : Rect) :
+    (Shape.rect b).view sx sy = .rect ⟨sx.map b.x0, sy.map b.y0, sx.map b.x1, sy.map b.y1⟩ := rfl
+
+theorem Shape.view_text (sx sy : Inkproof.Scale.Linear Rat) (b : Rect) (s : String) :
+    (Shape.text b s).view sx sy = .text ⟨sx.map b.x0, sy.map b.y0, sx.map b.x1, sy.map b.y1⟩ s := rfl
+
+theorem Shape.view_clipped (sx sy : Inkproof.Scale.Linear Rat) (b : Rect) (s : Shape) :
+    (Shape.clipped b s).view sx sy =
+      .clipped ⟨sx.map b.x0, sy.map b.y0, sx.map b.x1, sy.map b.y1⟩ (s.view sx sy) := rfl
+
+/-- Scaling the sizes of a list in data coordinates, then viewing it, is viewing it and then drawing
+it at `k` times the pixel size: a strip's half width and a marker's radius become `k` times theirs
+while the positions are the original's under the view. -/
+theorem Shape.view_scaleSizes (sx sy : Inkproof.Scale.Linear Rat) (k : Rat) (s : Shape) :
+    (s.scaleSizes k).view sx sy = (s.view sx sy).scaleSizes k := by
+  induction s with
+  | clipped b s ih => simp only [Shape.scaleSizes, Shape.view, ih]
+  | _ => rfl
+
+theorem Shape.view_scaleSizes_strip (sx sy : Inkproof.Scale.Linear Rat) (k hw : Rat) (items : List (Item Pt)) :
+    ((Shape.strip hw items).scaleSizes k).view sx sy =
+      .strip (k * hw) (items.map (Item.map (Pt.view sx sy))) := rfl
+
+theorem Shape.view_scaleSizes_marker (sx sy : Inkproof.Scale.Linear Rat) (k : Rat) (m : MarkerShape) (c : Pt)
+    (r : Rat) :
+    ((Shape.marker m c r).scaleSizes k).view sx sy = .marker m (c.view sx sy) (k * r) := rfl
 
 /-- The point of the original that `p` is the image of. -/
 def Pt.unscale (k : Rat) (p : Pt) : Pt := ⟨p.x / k, p.y / k⟩

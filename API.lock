@@ -64,6 +64,8 @@ field Inkproof.Scene.Command.layer : Inkproof.Scene.Command → Nat
 theorem Inkproof.Scene.Command.meetsB_iff : ∀ (c : Inkproof.Scene.Command) (px : Inkproof.Scene.Pixel), c.shape.meetsB px.window = Bool.true ↔ c.Covers px
 constructor Inkproof.Scene.Command.mk : Nat → Inkproof.Scene.Shading → Inkproof.Scene.Shape → Inkproof.Scene.Command
 def Inkproof.Scene.Command.scale : Rat → Inkproof.Scene.Command → Inkproof.Scene.Command
+def Inkproof.Scene.Command.scaleSizes : Rat → Inkproof.Scene.Command → Inkproof.Scene.Command
+theorem Inkproof.Scene.Command.scaleSizes_eq : ∀ (k : Rat) (c : Inkproof.Scene.Command), Inkproof.Scene.Command.scaleSizes k c = { layer := c.layer, color := c.color, shape := Inkproof.Scene.Shape.scaleSizes k c.shape }
 theorem Inkproof.Scene.Command.scale_covers : ∀ {k : Rat}, 0 < k → ∀ (c : Inkproof.Scene.Command) (px : Inkproof.Scene.Pixel), (Inkproof.Scene.Command.scale k c).Covers px ↔ ∃ q, c.shape.region q ∧ px.Contains (Inkproof.Scene.Pt.scale k q)
 theorem Inkproof.Scene.Command.scale_eq : ∀ (k : Rat) (c : Inkproof.Scene.Command), Inkproof.Scene.Command.scale k c = { layer := c.layer, color := Inkproof.Scene.Shading.scale k c.color, shape := Inkproof.Scene.Shape.scale k c.shape }
 field Inkproof.Scene.Command.shape : Inkproof.Scene.Command → Inkproof.Scene.Shape
@@ -99,6 +101,9 @@ theorem Inkproof.Scene.DisplayList.paintOrder_layer : ∀ (dl : Inkproof.Scene.D
 theorem Inkproof.Scene.DisplayList.paintOrder_perm : ∀ (dl : Inkproof.Scene.DisplayList), dl.paintOrder.Perm dl.toList
 theorem Inkproof.Scene.DisplayList.paintOrder_sorted : ∀ (dl : Inkproof.Scene.DisplayList), List.Pairwise (fun a b => a.layer ≤ b.layer) dl.paintOrder
 def Inkproof.Scene.DisplayList.scale : Rat → Inkproof.Scene.DisplayList → Inkproof.Scene.DisplayList
+def Inkproof.Scene.DisplayList.scaleSizes : Rat → Inkproof.Scene.DisplayList → Inkproof.Scene.DisplayList
+theorem Inkproof.Scene.DisplayList.scaleSizes_size : ∀ (k : Rat) (dl : Inkproof.Scene.DisplayList), Array.size (Inkproof.Scene.DisplayList.scaleSizes k dl) = Array.size dl
+theorem Inkproof.Scene.DisplayList.scaleSizes_toList : ∀ (k : Rat) (dl : Inkproof.Scene.DisplayList), (Inkproof.Scene.DisplayList.scaleSizes k dl).toList = List.map (Inkproof.Scene.Command.scaleSizes k) dl.toList
 theorem Inkproof.Scene.DisplayList.scale_covers : ∀ {k : Rat}, 0 < k → ∀ (dl : Inkproof.Scene.DisplayList) (px : Inkproof.Scene.Pixel), (Inkproof.Scene.DisplayList.scale k dl).Covers px ↔ ∃ c, c ∈ dl ∧ ∃ q, c.shape.region q ∧ px.Contains (Inkproof.Scene.Pt.scale k q)
 theorem Inkproof.Scene.DisplayList.scale_size : ∀ (k : Rat) (dl : Inkproof.Scene.DisplayList), Array.size (Inkproof.Scene.DisplayList.scale k dl) = Array.size dl
 theorem Inkproof.Scene.DisplayList.scale_toList : ∀ (k : Rat) (dl : Inkproof.Scene.DisplayList), (Inkproof.Scene.DisplayList.scale k dl).toList = List.map (Inkproof.Scene.Command.scale k) dl.toList
@@ -218,6 +223,8 @@ theorem Inkproof.Scene.Pt.scale_x : ∀ (k : Rat) (p : Inkproof.Scene.Pt), (Inkp
 theorem Inkproof.Scene.Pt.scale_y : ∀ (k : Rat) (p : Inkproof.Scene.Pt), (Inkproof.Scene.Pt.scale k p).y = k * p.y
 def Inkproof.Scene.Pt.unscale : Rat → Inkproof.Scene.Pt → Inkproof.Scene.Pt
 theorem Inkproof.Scene.Pt.unscale_eq : ∀ (k : Rat) (p : Inkproof.Scene.Pt), Inkproof.Scene.Pt.unscale k p = { x := p.x / k, y := p.y / k }
+def Inkproof.Scene.Pt.view : Inkproof.Scale.Linear Rat → Inkproof.Scale.Linear Rat → Inkproof.Scene.Pt → Inkproof.Scene.Pt
+theorem Inkproof.Scene.Pt.view_eq : ∀ (sx sy : Inkproof.Scale.Linear Rat) (p : Inkproof.Scene.Pt), Inkproof.Scene.Pt.view sx sy p = { x := sx.map p.x, y := sy.map p.y }
 field Inkproof.Scene.Pt.x : Inkproof.Scene.Pt → Rat
 field Inkproof.Scene.Pt.y : Inkproof.Scene.Pt → Rat
 structure Inkproof.Scene.Rect : Type
@@ -301,6 +308,14 @@ theorem Inkproof.Scene.Shape.meetsB_iff : ∀ (s : Inkproof.Scene.Shape) (w : In
 constructor Inkproof.Scene.Shape.rect : Inkproof.Scene.Rect → Inkproof.Scene.Shape
 def Inkproof.Scene.Shape.region : Inkproof.Scene.Shape → Inkproof.Scene.Region
 def Inkproof.Scene.Shape.scale : Rat → Inkproof.Scene.Shape → Inkproof.Scene.Shape
+def Inkproof.Scene.Shape.scaleSizes : Rat → Inkproof.Scene.Shape → Inkproof.Scene.Shape
+theorem Inkproof.Scene.Shape.scaleSizes_area : ∀ (k y0 : Rat) (items : List (Inkproof.Scene.Item Inkproof.Scene.Pt)), Inkproof.Scene.Shape.scaleSizes k (Inkproof.Scene.Shape.area y0 items) = Inkproof.Scene.Shape.area y0 items
+theorem Inkproof.Scene.Shape.scaleSizes_clipped : ∀ (k : Rat) (b : Inkproof.Scene.Rect) (s : Inkproof.Scene.Shape), Inkproof.Scene.Shape.scaleSizes k (Inkproof.Scene.Shape.clipped b s) = Inkproof.Scene.Shape.clipped b (Inkproof.Scene.Shape.scaleSizes k s)
+theorem Inkproof.Scene.Shape.scaleSizes_envelope : ∀ (k : Rat) (items : List (Inkproof.Scene.Item Inkproof.Scene.Column)), Inkproof.Scene.Shape.scaleSizes k (Inkproof.Scene.Shape.envelope items) = Inkproof.Scene.Shape.envelope items
+theorem Inkproof.Scene.Shape.scaleSizes_marker : ∀ (k : Rat) (m : Inkproof.Scene.MarkerShape) (c : Inkproof.Scene.Pt) (r : Rat), Inkproof.Scene.Shape.scaleSizes k (Inkproof.Scene.Shape.marker m c r) = Inkproof.Scene.Shape.marker m c (k * r)
+theorem Inkproof.Scene.Shape.scaleSizes_rect : ∀ (k : Rat) (b : Inkproof.Scene.Rect), Inkproof.Scene.Shape.scaleSizes k (Inkproof.Scene.Shape.rect b) = Inkproof.Scene.Shape.rect b
+theorem Inkproof.Scene.Shape.scaleSizes_strip : ∀ (k hw : Rat) (items : List (Inkproof.Scene.Item Inkproof.Scene.Pt)), Inkproof.Scene.Shape.scaleSizes k (Inkproof.Scene.Shape.strip hw items) = Inkproof.Scene.Shape.strip (k * hw) items
+theorem Inkproof.Scene.Shape.scaleSizes_text : ∀ (k : Rat) (b : Inkproof.Scene.Rect) (s : String), Inkproof.Scene.Shape.scaleSizes k (Inkproof.Scene.Shape.text b s) = Inkproof.Scene.Shape.text b s
 theorem Inkproof.Scene.Shape.scale_area : ∀ (k y0 : Rat) (items : List (Inkproof.Scene.Item Inkproof.Scene.Pt)), Inkproof.Scene.Shape.scale k (Inkproof.Scene.Shape.area y0 items) = Inkproof.Scene.Shape.area (k * y0) (List.map (Inkproof.Scene.Item.map (Inkproof.Scene.Pt.scale k)) items)
 theorem Inkproof.Scene.Shape.scale_clipped : ∀ (k : Rat) (b : Inkproof.Scene.Rect) (s : Inkproof.Scene.Shape), Inkproof.Scene.Shape.scale k (Inkproof.Scene.Shape.clipped b s) = Inkproof.Scene.Shape.clipped (Inkproof.Scene.Rect.scale k b) (Inkproof.Scene.Shape.scale k s)
 theorem Inkproof.Scene.Shape.scale_covers : ∀ {k : Rat}, 0 < k → ∀ (s : Inkproof.Scene.Shape) (px : Inkproof.Scene.Pixel), (Inkproof.Scene.Shape.scale k s).region.Covers px ↔ ∃ q, s.region q ∧ px.Contains (Inkproof.Scene.Pt.scale k q)
@@ -313,6 +328,17 @@ theorem Inkproof.Scene.Shape.scale_text : ∀ (k : Rat) (b : Inkproof.Scene.Rect
 constructor Inkproof.Scene.Shape.strip : Rat → List (Inkproof.Scene.Item Inkproof.Scene.Pt) → Inkproof.Scene.Shape
 theorem Inkproof.Scene.Shape.strip_region_of_val : ∀ {hw : Rat} {items : List (Inkproof.Scene.Item Inkproof.Scene.Pt)} {a : Inkproof.Scene.Pt}, Inkproof.Scene.Item.val a ∈ items → (Inkproof.Scene.Shape.strip hw items).region a
 constructor Inkproof.Scene.Shape.text : Inkproof.Scene.Rect → String → Inkproof.Scene.Shape
+def Inkproof.Scene.Shape.view : Inkproof.Scale.Linear Rat → Inkproof.Scale.Linear Rat → Inkproof.Scene.Shape → Inkproof.Scene.Shape
+theorem Inkproof.Scene.Shape.view_area : ∀ (sx sy : Inkproof.Scale.Linear Rat) (y0 : Rat) (items : List (Inkproof.Scene.Item Inkproof.Scene.Pt)), Inkproof.Scene.Shape.view sx sy (Inkproof.Scene.Shape.area y0 items) = Inkproof.Scene.Shape.area (sy.map y0) (List.map (Inkproof.Scene.Item.map (Inkproof.Scene.Pt.view sx sy)) items)
+theorem Inkproof.Scene.Shape.view_clipped : ∀ (sx sy : Inkproof.Scale.Linear Rat) (b : Inkproof.Scene.Rect) (s : Inkproof.Scene.Shape), Inkproof.Scene.Shape.view sx sy (Inkproof.Scene.Shape.clipped b s) = Inkproof.Scene.Shape.clipped { x0 := sx.map b.x0, y0 := sy.map b.y0, x1 := sx.map b.x1, y1 := sy.map b.y1 } (Inkproof.Scene.Shape.view sx sy s)
+theorem Inkproof.Scene.Shape.view_envelope : ∀ (sx sy : Inkproof.Scale.Linear Rat) (items : List (Inkproof.Scene.Item Inkproof.Scene.Column)), Inkproof.Scene.Shape.view sx sy (Inkproof.Scene.Shape.envelope items) = Inkproof.Scene.Shape.envelope (List.map (Inkproof.Scene.Item.map fun c => { x := sx.map c.x, lo := sy.map c.lo, hi := sy.map c.hi }) items)
+theorem Inkproof.Scene.Shape.view_marker : ∀ (sx sy : Inkproof.Scale.Linear Rat) (m : Inkproof.Scene.MarkerShape) (c : Inkproof.Scene.Pt) (r : Rat), Inkproof.Scene.Shape.view sx sy (Inkproof.Scene.Shape.marker m c r) = Inkproof.Scene.Shape.marker m (Inkproof.Scene.Pt.view sx sy c) r
+theorem Inkproof.Scene.Shape.view_rect : ∀ (sx sy : Inkproof.Scale.Linear Rat) (b : Inkproof.Scene.Rect), Inkproof.Scene.Shape.view sx sy (Inkproof.Scene.Shape.rect b) = Inkproof.Scene.Shape.rect { x0 := sx.map b.x0, y0 := sy.map b.y0, x1 := sx.map b.x1, y1 := sy.map b.y1 }
+theorem Inkproof.Scene.Shape.view_scaleSizes : ∀ (sx sy : Inkproof.Scale.Linear Rat) (k : Rat) (s : Inkproof.Scene.Shape), Inkproof.Scene.Shape.view sx sy (Inkproof.Scene.Shape.scaleSizes k s) = Inkproof.Scene.Shape.scaleSizes k (Inkproof.Scene.Shape.view sx sy s)
+theorem Inkproof.Scene.Shape.view_scaleSizes_marker : ∀ (sx sy : Inkproof.Scale.Linear Rat) (k : Rat) (m : Inkproof.Scene.MarkerShape) (c : Inkproof.Scene.Pt) (r : Rat), Inkproof.Scene.Shape.view sx sy (Inkproof.Scene.Shape.scaleSizes k (Inkproof.Scene.Shape.marker m c r)) = Inkproof.Scene.Shape.marker m (Inkproof.Scene.Pt.view sx sy c) (k * r)
+theorem Inkproof.Scene.Shape.view_scaleSizes_strip : ∀ (sx sy : Inkproof.Scale.Linear Rat) (k hw : Rat) (items : List (Inkproof.Scene.Item Inkproof.Scene.Pt)), Inkproof.Scene.Shape.view sx sy (Inkproof.Scene.Shape.scaleSizes k (Inkproof.Scene.Shape.strip hw items)) = Inkproof.Scene.Shape.strip (k * hw) (List.map (Inkproof.Scene.Item.map (Inkproof.Scene.Pt.view sx sy)) items)
+theorem Inkproof.Scene.Shape.view_strip : ∀ (sx sy : Inkproof.Scale.Linear Rat) (hw : Rat) (items : List (Inkproof.Scene.Item Inkproof.Scene.Pt)), Inkproof.Scene.Shape.view sx sy (Inkproof.Scene.Shape.strip hw items) = Inkproof.Scene.Shape.strip hw (List.map (Inkproof.Scene.Item.map (Inkproof.Scene.Pt.view sx sy)) items)
+theorem Inkproof.Scene.Shape.view_text : ∀ (sx sy : Inkproof.Scale.Linear Rat) (b : Inkproof.Scene.Rect) (s : String), Inkproof.Scene.Shape.view sx sy (Inkproof.Scene.Shape.text b s) = Inkproof.Scene.Shape.text { x0 := sx.map b.x0, y0 := sy.map b.y0, x1 := sx.map b.x1, y1 := sy.map b.y1 } s
 inductive Inkproof.Scene.Side : Type
 def Inkproof.Scene.Side.across : Inkproof.Scene.Side → Inkproof.Scene.Pt → Rat
 theorem Inkproof.Scene.Side.across_pt : ∀ (s : Inkproof.Scene.Side) (a c : Rat), (if s.horizontal = Bool.true then (s.pt a c).y else (s.pt a c).x) = c
