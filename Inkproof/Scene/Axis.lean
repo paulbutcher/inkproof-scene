@@ -82,7 +82,7 @@ theorem Side.outward_spec :
     Side.bottom.outward = 1 ∧ Side.right.outward = 1 ∧
     Side.top.outward = -1 ∧ Side.left.outward = -1 := ⟨rfl, rfl, rfl, rfl⟩
 
-/-- How an axis is drawn. Tick marks and the axis line are strips of the given half widths; a
+/-- How an axis is drawn. Every width, half width and length is in pixels. Tick marks and the axis line are strips of the given half widths; a
 gridline runs across the whole plot at each tick. A label is anchored `labelGap` beyond the end of
 the tick marks. -/
 structure AxisStyle where

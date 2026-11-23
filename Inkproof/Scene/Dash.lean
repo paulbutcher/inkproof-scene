@@ -6,7 +6,7 @@ import Inkproof.Scene.Poly
 
 namespace Inkproof.Scene
 
-/-- A dash pattern in grid units, measured along the line: `on` drawn, then `off` skipped, repeating
+/-- A dash pattern in the projection's units (pixels for a pixel projection), measured along the line: `on` drawn, then `off` skipped, repeating
 from the start of each run. A pattern whose `on` is not positive or whose `off` is negative draws
 the line solid. -/
 structure DashPattern where

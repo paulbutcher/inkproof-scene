@@ -140,8 +140,25 @@ def stackedBarsRest : TestCase := .mk "stacked bars rest on the bar below" <|
             | _, _ => check false "bar missing"
       | _, _ => check false "series missing"
 
+/-- At 40 pixels per x unit, a fraction of 3 / 5 gives bars 24 pixels wide, not the 3 / 5 of a
+pixel that the same number would mean as a width. -/
+def stackedBarsByFraction : TestCase := .mk "stacked bars take a fraction of the spacing" <|
+  forAll 100 (fun g => g.below 20) fun n => do
+    let pts : Array (Nat × Option Rat) := (Array.range (n + 2)).map fun i => (i, some (i + 1 : Rat))
+    match Series.ofPoints? pts with
+    | .error _ => check false "series rejected"
+    | .ok s =>
+      let proj : Projection Nat Rat := ⟨fun x => 40 * (x : Rat), id⟩
+      let bars := compileStackedBarsBy (fun k => ⟨k, Color.mk 0 0 0 255⟩) (3 / 5) proj #[s]
+      check (bars.size == n + 2) "wrong number of bars"
+      for c in bars do
+        match c.shape with
+        | .rect b => check (b.x1 - b.x0 == 24) "bar is not 3 / 5 of the spacing"
+        | _ => check false "not a rect"
+
 def tests : List TestCase :=
   [reductionKeepsWhatMatters, spikeSurvives, scatterOnePerSample, scatterByRadiusPerValue, dashesStayWithinPattern,
-    dashesCoverEveryPeriod, millionPointsCompile, stackedBarsRest]
+    dashesCoverEveryPeriod, millionPointsCompile, stackedBarsRest,
+    stackedBarsByFraction]
 
 end InkproofSceneTest.CompileTests

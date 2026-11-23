@@ -302,7 +302,7 @@ structure Paint where
   layer : Nat
   color : Shading
 
-/-- A line chart's style. `reduce` aggregates each run to the first, last, lowest and highest value
+/-- A line chart's style. `halfWidth` is in the projection's units (pixels for a pixel projection). `reduce` aggregates each run to the first, last, lowest and highest value
 of each pixel column class, which draws the same pixels as the full data for a bare line
 (`compileLine_covers_iff`); a thick line is not covered by that guarantee. A `dash` cuts each run,
 after joining and reducing, into dashes (`dashRun`), each within the undashed line; `none` is solid. -/
@@ -395,12 +395,12 @@ def compileEnvelopeOfExtents {β : Type v} [LE β] [DecidableLE β] (paint : Pai
     (proj : Projection Nat β) (cols : Array (Minimum β × Maximum β)) : DisplayList :=
   compileEnvelope paint proj (extentColumns cols)
 
-/-- A bar chart's style: `width` is the bar width in grid units. -/
+/-- A bar chart's style: `width` is the bar width in the projection's units (pixels for a pixel projection), not in data units; `compileStackedBarsBy` sizes bars by their spacing instead. -/
 structure BarStyle where
   paint : Paint
   width : Rat
 
-/-- A bar chart: for each present value, a bar of `width` centred on its x, from `baseline` to the
+/-- A bar chart: for each present value, a bar `width` wide (in the projection's units) centred on its x, from `baseline` to the
 value. A missing value has no bar. -/
 def compileBars {α : Type u} {β : Type v} [LE α] (st : BarStyle) (baseline : β)
     (proj : Projection α β) (s : Series α β) : DisplayList :=
@@ -408,7 +408,7 @@ def compileBars {α : Type u} {β : Type v} [LE α] (st : BarStyle) (baseline : 
     v.map fun y => ⟨st.paint.layer, st.paint.color,
       .rect ⟨proj.x x - st.width / 2, proj.y baseline, proj.x x + st.width / 2, proj.y y⟩⟩
 
-/-- A scatter chart's style. -/
+/-- A scatter chart's style: `radius` is in the projection's units (pixels for a pixel projection). -/
 structure ScatterStyle where
   paint : Paint
   shape : MarkerShape

@@ -13,7 +13,7 @@ The display list for Inkproof charts, the compilers that produce it, and a refer
 - Style bars, lines and scatter points: `BarStyle`, `LineStyle`, `ScatterStyle`, `RingStyle`, `SeriesStyle`, with `Dash` and `MarkerShape` for dashes and markers.
 - Give the data a chart compiler takes: `Pt` for line and scatter points, `Cell` for heatmap cells, `Column` for envelope columns.
 - Draw a line dashed or dotted with a stated pattern along its length, each dash within the solid line and no dash across a gap: `LineStyle.dash`, `DashPattern`, `Dash.pattern`, `dashRun`.
-- Draw stacked areas or stacked bars of several series over shared x values, each band resting on the one below: `compileStackedAreas`, `compileStackedBars`, `stackSpan`.
+- Draw stacked areas or stacked bars of several series over shared x values, each band resting on the one below: `compileStackedAreas`, `compileStackedBars` (bar width in the projection's units, pixels for a pixel projection), `compileStackedBarsBy` (bar width as a fraction of the distance between neighbouring x values), `stackSpan`.
 - Join a line or area's points with steps before or after each point, or a smooth spline through every point, never across a gap: `Join`, `LineStyle.join`, the `join` argument of `compileArea`, `joinRun`.
 - Thin dense line data without changing its look: `reducePoints`, `reduceRun`, `groupByKey`.
 - Clip a display list to a rectangle: `DisplayList.clip`, `Command.clip`, `Shape.clip`, `Rect.meet`.
