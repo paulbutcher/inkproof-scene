@@ -13,10 +13,13 @@ import Inkproof.Scale.Linear
 import Inkproof.Scale.Log
 import Inkproof.Float.FloatValue
 import Inkproof.Scene.Compile
+import Inkproof.Scene.Text
 
 namespace Inkproof.Scene
 
-universe u
+open Inkproof.Core
+
+universe u v
 
 /-- The edge of the plot rectangle an axis lies along. Ticks point away from the plot. -/
 inductive Side where
@@ -84,25 +87,27 @@ theorem Side.outward_spec :
 
 /-- How an axis is drawn. Every width, half width and length is in pixels. Tick marks and the axis line are strips of the given half widths; a
 gridline runs across the whole plot at each tick. A label is anchored `labelGap` beyond the end of
-the tick marks. Each of the line, the tick marks and the labels can be left out; the gridlines and the labels
+the tick marks. Each of the line, the tick marks and the labels can be left out; the labels are set in `labelText`; the gridlines and the labels
 keep their places when the line or the tick marks are. -/
 structure AxisStyle where
-  line : Paint
-  lineHalfWidth : Rat
-  tick : Paint
-  tickHalfWidth : Rat
-  tickLength : Rat
-  grid : Option (Paint × Rat)
-  labelGap : Rat
+  line : Paint := {}
+  lineHalfWidth : Rat := 1 / 2
+  tick : Paint := {}
+  tickHalfWidth : Rat := 1 / 2
+  tickLength : Rat := 4
+  grid : Option (Paint × Rat) := none
+  labelGap : Rat := 2
   showLine : Bool := true
   showTicks : Bool := true
   showLabels : Bool := true
+  labelText : TextStyle := {}
 
-/-- A label for the host's text layer: its text, the point it is anchored at, and its turn. -/
+/-- A label for the host's text layer: its text, the point it is anchored at, its turn and how it is set. -/
 structure PlacedLabel where
   text : String
   anchor : Pt
   rotation : Inkproof.Axis.Rotation
+  style : TextStyle := {}
 
 /-- An axis as drawn: the marks, and the labels the host's text layer places. -/
 structure AxisDrawing where
@@ -124,6 +129,28 @@ def axisGridlines {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st
   | none => []
   | some (p, w) => ticks.map fun t => segment p w (side.pt (proj t) (side.edge r)) (side.pt (proj t) (side.far r))
 
+/-- A label at the end of each bar's value, set in `style`, with `format` turning the value into text.
+A missing value has no label. -/
+def barValueLabels {α : Type u} {β : Type v} [LE α] (style : TextStyle) (format : β → String)
+    (proj : Projection α β) (s : Series α β) : List PlacedLabel :=
+  (s.points.filterMap fun (x, v) =>
+    v.map fun y => ⟨format y, ⟨proj.x x, proj.y y⟩, .horizontal, style⟩).toList
+
+/-- The labels are those of the series' points in order, one for each present value and none for a missing one. -/
+theorem barValueLabels_eq {α : Type u} {β : Type v} [LE α] (style : TextStyle) (format : β → String)
+    (proj : Projection α β) (s : Series α β) :
+    barValueLabels style format proj s =
+      s.points.toList.filterMap fun (x, v) =>
+        v.map fun y => ⟨format y, ⟨proj.x x, proj.y y⟩, .horizontal, style⟩ := by
+  simp [barValueLabels]
+
+/-- Each present value has a label anchored at its bar's end, in the given style. -/
+theorem mem_barValueLabels {α : Type u} {β : Type v} [LE α] (style : TextStyle) (format : β → String)
+    (proj : Projection α β) (s : Series α β) {x : α} {y : β} (h : (x, some y) ∈ s.points) :
+    (⟨format y, ⟨proj.x x, proj.y y⟩, .horizontal, style⟩ : PlacedLabel) ∈
+      barValueLabels style format proj s :=
+  Array.mem_toList_iff.2 (Array.mem_filterMap.2 ⟨(x, some y), h, rfl⟩)
+
 /-- An axis of `side` of the plot `r`. A tick at data value `t` lies at `proj t` along the axis, so
 `proj` is the projection of the axis's scale, linear, logarithmic or banded. Each tick gets a tick
 mark, unless the style omits them, and, if the style has a grid, a gridline; `layout` is Axis's choice of which labelled ticks to
@@ -140,7 +167,7 @@ def compileAxis {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st :
   { display := (axisGridlines side r proj st ticks ++ (if st.showLine then [axisLine] else []) ++
       (if st.showTicks then marks else [])).toArray
     labels := if st.showLabels then layout.kept.map fun l =>
-      ⟨l.2, side.pt (proj l.1) (tickEnd + side.outward * st.labelGap), layout.rotation⟩ else [] }
+      ⟨l.2, side.pt (proj l.1) (tickEnd + side.outward * st.labelGap), layout.rotation, st.labelText⟩ else [] }
 
 /-- The display is the gridlines, then the axis line if shown, then the tick marks if shown. -/
 theorem compileAxis_display {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
@@ -168,6 +195,18 @@ theorem compileAxis_bare_keeps {α : Type u} (side : Side) (r : Rect) (proj : α
         (compileAxis side r proj st ticks layout).labels ∧
       (compileAxis side r proj { st with showLine := false, showTicks := false } ticks layout).display =
         (axisGridlines side r proj st ticks).toArray := ⟨rfl, by simp [compileAxis, axisGridlines]⟩
+
+/-- The label text style changes only the labels' style: the display is unchanged, and so are the labels' text, anchors
+and rotation. -/
+theorem compileAxis_labelText {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+    (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) (t : TextStyle) :
+    (compileAxis side r proj { st with labelText := t } ticks layout).display =
+        (compileAxis side r proj st ticks layout).display ∧
+      (compileAxis side r proj { st with labelText := t } ticks layout).labels =
+        (compileAxis side r proj st ticks layout).labels.map ({ · with style := t }) := by
+  refine ⟨rfl, ?_⟩
+  simp only [compileAxis]
+  split <;> simp [Function.comp_def]
 
 /-- Without labels the drawing has none. -/
 theorem compileAxis_no_labels {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
@@ -323,11 +362,16 @@ theorem Side.across_pt' (s : Side) (a c : Rat) : s.across (s.pt a c) = c := by
 axis's tick labels reach beyond the plot's edge, as measured by the host; the title's anchor is
 `gap` beyond that, and the text extends away from the plot from it. A title beside a vertical axis
 is turned. -/
-def placeAxisTitle (side : Side) (r : Rect) (extent gap : Rat) (text : String) : PlacedLabel :=
+def placeAxisTitle (side : Side) (r : Rect) (extent gap : Rat) (text : String)
+    (style : TextStyle := TextStyle.axisTitle) : PlacedLabel :=
   let lo := if side.horizontal then r.x0 else r.y0
   let hi := if side.horizontal then r.x1 else r.y1
   ⟨text, side.pt ((lo + hi) / 2) (side.edge r + side.outward * (extent + gap)),
-    if side.horizontal then .horizontal else .vertical⟩
+    if side.horizontal then .horizontal else .vertical, style⟩
+
+/-- The title is set in the given style. -/
+theorem placeAxisTitle_style (side : Side) (r : Rect) (extent gap : Rat) (text : String) (s : TextStyle) :
+    (placeAxisTitle side r extent gap text s).style = s := rfl
 
 /-- The title is centred along the axis. -/
 theorem placeAxisTitle_along (side : Side) (r : Rect) (extent gap : Rat) (text : String) :

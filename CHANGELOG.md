@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.28.0
+
+- `TextStyle` (family, size, colour) is taken by axis labels (`AxisStyle.labelText`), axis titles (`placeAxisTitle`) and bar value labels (`barValueLabels`), and carried by `PlacedLabel.style`.
+- `AxisStyle`, `Paint`, `LineStyle`, `BarStyle`, `ScatterStyle`, `RingStyle` and `SeriesStyle` have a default for every field.
+
 ## v0.27.0
 
 - `AxisStyle` gains `showLine`, `showTicks` and `showLabels` (default true) to omit each part of an axis independently; `compileAxis_tick`, `compileAxis_label` and the per-scale tick theorems now take the matching switch.

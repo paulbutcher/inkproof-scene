@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 import Inkproof.Scene.Raster
 import Inkproof.Scene.Shading
+import Inkproof.Scene.Text
 import Inkproof.Scene.DisplayList
 import Inkproof.Scene.Coverage
 import Inkproof.Scene.Clip

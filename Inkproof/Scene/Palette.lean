@@ -36,9 +36,9 @@ theorem Dash.pattern_dotted (unit : Rat) : Dash.dotted.pattern unit = some ⟨un
 /-- Everything that tells one series from another: a series is identifiable by its marker and dash
 without its colour. -/
 structure SeriesStyle where
-  color : Color
-  marker : MarkerShape
-  dash : Dash
+  color : Color := Color.black
+  marker : MarkerShape := .circle
+  dash : Dash := .solid
   deriving DecidableEq, Repr
 
 namespace Color

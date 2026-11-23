@@ -11,7 +11,7 @@ open InkproofTools.Test Inkproof.Scene Inkproof.Core
 
 def paint : Paint := ⟨0, Color.mk 0 0 0 255⟩
 
-def style : AxisStyle := ⟨paint, 1/2, paint, 1/2, 4, some (paint, 1/4), 2, true, true, true⟩
+def style : AxisStyle := ⟨paint, 1/2, paint, 1/2, 4, some (paint, 1/4), 2, true, true, true, {}⟩
 
 def plot : Rect := ⟨10, 10, 210, 110⟩
 
@@ -65,6 +65,17 @@ def omittedParts : TestCase := .mk "an axis omits its line, ticks or labels inde
   check (bare.display.size + 1 + n == full.display.size) "bare axis keeps more than gridlines"
   check (bare.labels.map (·.anchor.x) == full.labels.map (·.anchor.x)) "labels moved"
 
+def textStyle : TestCase := .mk "axis labels and titles take their text style, and the default changes no mark" <| do
+  let s : Inkproof.Scale.Linear Float := ⟨0, 100, 10, 210⟩
+  let big : TextStyle := { family := "serif", size := 20 }
+  let plain := compileLinearAxis .bottom plot s spec measure style
+  let styled := compileLinearAxis .bottom plot s spec measure { style with labelText := big }
+  check (!styled.labels.isEmpty && styled.labels.all fun l => l.style.size == 20 && l.style.family == "serif") "labels not styled"
+  check (plain.labels.all (·.style.size == 10)) "default label size changed"
+  check (styled.display.size == plain.display.size) "text style changed the marks"
+  check ((placeAxisTitle .left plot 20 4 "y").style.size == 12) "title default size"
+  check ((placeAxisTitle .left plot 20 4 "y" big).style.size == 20) "title style ignored"
+
 def minorSkipsOutside : TestCase := .mk "a minor gridline outside the plot or on a main gridline is not drawn" <| do
   let s : Inkproof.Scale.Linear Float := ⟨0, 100, 10, 210⟩
   let ts := Inkproof.Axis.linearScaleTicks s spec.target
@@ -100,6 +111,6 @@ def timeAxisMonths : TestCase := .mk "a time axis over a year names months" <| d
     check (months.any (l.text.startsWith ·)) s!"not a month: {l.text}"
 
 def tests : List TestCase :=
-  [descendingLinear, logAxis, minorLogAxis, minorSkipsOutside, omittedParts, categoricalAxis, timeAxisClock, timeAxisMonths]
+  [descendingLinear, logAxis, minorLogAxis, minorSkipsOutside, omittedParts, textStyle, categoricalAxis, timeAxisClock, timeAxisMonths]
 
 end InkproofSceneTest.AxisTests

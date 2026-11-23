@@ -299,17 +299,17 @@ theorem Region.covers_exists {α : Type} {rs : List α} {f : α → Region} {px 
 
 /-- A shading and a layer: how a chart paints its marks. A `Color` is a flat shading. -/
 structure Paint where
-  layer : Nat
-  color : Shading
+  layer : Nat := 0
+  color : Shading := Color.black
 
 /-- A line chart's style. `halfWidth` is in the projection's units (pixels for a pixel projection). `reduce` aggregates each run to the first, last, lowest and highest value
 of each pixel column class, which draws the same pixels as the full data for a bare line
 (`compileLine_covers_iff`); a thick line is not covered by that guarantee. A `dash` cuts each run,
 after joining and reducing, into dashes (`dashRun`), each within the undashed line; `none` is solid. -/
 structure LineStyle where
-  paint : Paint
-  halfWidth : Rat
-  reduce : Bool
+  paint : Paint := {}
+  halfWidth : Rat := 1
+  reduce : Bool := false
   dash : Option DashPattern := none
   join : Join := .straight
 
@@ -397,8 +397,8 @@ def compileEnvelopeOfExtents {β : Type v} [LE β] [DecidableLE β] (paint : Pai
 
 /-- A bar chart's style: `width` is the bar width in the projection's units (pixels for a pixel projection), not in data units; `compileStackedBarsBy` sizes bars by their spacing instead. -/
 structure BarStyle where
-  paint : Paint
-  width : Rat
+  paint : Paint := {}
+  width : Rat := 8
 
 /-- A bar chart: for each present value, a bar `width` wide (in the projection's units) centred on its x, from `baseline` to the
 value. A missing value has no bar. -/
@@ -410,9 +410,9 @@ def compileBars {α : Type u} {β : Type v} [LE α] (st : BarStyle) (baseline : 
 
 /-- A scatter chart's style: `radius` is in the projection's units (pixels for a pixel projection). -/
 structure ScatterStyle where
-  paint : Paint
-  shape : MarkerShape
-  radius : Rat
+  paint : Paint := {}
+  shape : MarkerShape := .circle
+  radius : Rat := 3
 
 /-- A scatter chart: a marker at each present value. -/
 def compileScatter {α : Type u} {β : Type v} [LE α] (st : ScatterStyle) (proj : Projection α β)
@@ -437,11 +437,11 @@ def compileIsolated {α : Type u} {β : Type v} [LE α] (st : ScatterStyle) (pro
 
 /-- A hollow disc marker: `outline` out to `radius`, with `fill` over it out to `radius - stroke`. -/
 structure RingStyle where
-  layer : Nat
-  outline : Color
-  fill : Color
-  radius : Rat
-  stroke : Rat
+  layer : Nat := 0
+  outline : Color := Color.black
+  fill : Color := ⟨255, 255, 255, 255⟩
+  radius : Rat := 4
+  stroke : Rat := 2
 
 /-- A hollow marker centred at `center`: a disc over a larger disc. -/
 def compileRing (st : RingStyle) (center : Pt) : DisplayList :=

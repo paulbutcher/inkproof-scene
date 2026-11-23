@@ -27,6 +27,7 @@ The display list for Inkproof charts, the compilers that produce it, and a refer
 - Draw an axis for a linear, log or categorical scale in one call, choosing ticks, formatting and thinning labels: `compileLinearAxis`, `compileLogAxis`, `compileCategoricalAxis` (ticks at band centres, `bandCentrePixel`), `TickSpec`; for a scale of unix seconds, with ticks at clock intervals and UTC time labels, `compileTimeAxis`; for ticks already in pixels, `compilePixelAxis`.
 - Fill or stroke a shape with a colour that varies along x or y between stops, given in data units through a projection: `Shading`, `Projection.gradientY`, `Projection.gradientX`, `Shading.at`.
 - Fill or stroke a shape with a colour that changes at once at each stop instead of blending, stops in data units: `Shading.steps`, `Projection.stepsY`, `Projection.stepsX`.
+- Set axis labels, axis titles and bar value labels in one text style, family, size and colour, each with a default: `TextStyle`, `AxisStyle.labelText`, `PlacedLabel.style`, `placeAxisTitle`, `barValueLabels`; every style structure (`AxisStyle`, `LineStyle`, `BarStyle`, `ScatterStyle`, `RingStyle`, `SeriesStyle`, `Paint`) has a default for each field.
 - Place an axis title beside an axis, centred along it and clear of the tick labels, turned for a vertical axis: `placeAxisTitle`.
 - Pick colours, dash styles and markers for series in light and dark themes with checked contrast: `Theme`, `Theme.series`, `Theme.seriesStyle`, `Color.contrast`.
 - Make a colour from hue, saturation, lightness and alpha: `Color.ofHsl`.

@@ -14,6 +14,9 @@ structure Color where
   a : UInt8
   deriving DecidableEq, Repr
 
+/-- Opaque black. -/
+def Color.black : Color := ⟨0, 0, 0, 255⟩
+
 /-- A colour at a position along a gradient's axis, in grid coordinates. -/
 structure Stop where
   pos : Rat
