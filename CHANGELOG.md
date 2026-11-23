@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.29.1
+
+- README: the require example names no release version.
+
 ## v0.29.0
 
 - `Shape`, `Shading` and `Command` derive `DecidableEq`, so `DisplayList` has decidable equality.
