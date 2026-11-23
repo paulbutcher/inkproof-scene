@@ -84,7 +84,8 @@ theorem Side.outward_spec :
 
 /-- How an axis is drawn. Every width, half width and length is in pixels. Tick marks and the axis line are strips of the given half widths; a
 gridline runs across the whole plot at each tick. A label is anchored `labelGap` beyond the end of
-the tick marks. -/
+the tick marks. Each of the line, the tick marks and the labels can be left out; the gridlines and the labels
+keep their places when the line or the tick marks are. -/
 structure AxisStyle where
   line : Paint
   lineHalfWidth : Rat
@@ -93,6 +94,9 @@ structure AxisStyle where
   tickLength : Rat
   grid : Option (Paint × Rat)
   labelGap : Rat
+  showLine : Bool := true
+  showTicks : Bool := true
+  showLabels : Bool := true
 
 /-- A label for the host's text layer: its text, the point it is anchored at, and its turn. -/
 structure PlacedLabel where
@@ -113,9 +117,16 @@ theorem segment_spec (c : Paint) (w : Rat) (a b : Pt) :
     (segment c w a b).layer = c.layer ∧ (segment c w a b).color = c.color ∧
     (segment c w a b).shape = .strip w [.val a, .val b] := ⟨rfl, rfl, rfl⟩
 
+/-- The main gridlines: one across the whole plot at each tick, if the style has a grid. -/
+def axisGridlines {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+    (ticks : List α) : List Command :=
+  match st.grid with
+  | none => []
+  | some (p, w) => ticks.map fun t => segment p w (side.pt (proj t) (side.edge r)) (side.pt (proj t) (side.far r))
+
 /-- An axis of `side` of the plot `r`. A tick at data value `t` lies at `proj t` along the axis, so
 `proj` is the projection of the axis's scale, linear, logarithmic or banded. Each tick gets a tick
-mark and, if the style has a grid, a gridline; `layout` is Axis's choice of which labelled ticks to
+mark, unless the style omits them, and, if the style has a grid, a gridline; `layout` is Axis's choice of which labelled ticks to
 show and how to turn them. -/
 def compileAxis {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
     (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) : AxisDrawing :=
@@ -126,24 +137,77 @@ def compileAxis {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st :
   let axisLine := segment st.line st.lineHalfWidth (side.pt lo e) (side.pt hi e)
   let marks := ticks.map fun t =>
     segment st.tick st.tickHalfWidth (side.pt (proj t) e) (side.pt (proj t) tickEnd)
-  let grid := match st.grid with
-    | none => []
-    | some (p, w) => ticks.map fun t => segment p w (side.pt (proj t) e) (side.pt (proj t) (side.far r))
-  { display := (grid ++ axisLine :: marks).toArray
-    labels := layout.kept.map fun l =>
-      ⟨l.2, side.pt (proj l.1) (tickEnd + side.outward * st.labelGap), layout.rotation⟩ }
+  { display := (axisGridlines side r proj st ticks ++ (if st.showLine then [axisLine] else []) ++
+      (if st.showTicks then marks else [])).toArray
+    labels := if st.showLabels then layout.kept.map fun l =>
+      ⟨l.2, side.pt (proj l.1) (tickEnd + side.outward * st.labelGap), layout.rotation⟩ else [] }
 
-/-- Every tick has a tick mark whose both ends lie at the tick's projection along the axis. -/
+/-- The display is the gridlines, then the axis line if shown, then the tick marks if shown. -/
+theorem compileAxis_display {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+    (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) :
+    (compileAxis side r proj st ticks layout).display =
+      (axisGridlines side r proj st ticks ++
+        (if st.showLine then
+          [segment st.line st.lineHalfWidth (side.pt (if side.horizontal then r.x0 else r.y0) (side.edge r))
+            (side.pt (if side.horizontal then r.x1 else r.y1) (side.edge r))] else []) ++
+        (if st.showTicks then ticks.map fun t =>
+          segment st.tick st.tickHalfWidth (side.pt (proj t) (side.edge r))
+            (side.pt (proj t) (side.edge r + side.outward * st.tickLength)) else [])).toArray := rfl
+
+/-- With the line and the tick marks omitted, the display is the gridlines alone. -/
+theorem compileAxis_display_bare {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+    (ticks : List α) (layout : Inkproof.Axis.Layout (α × String))
+    (hl : st.showLine = false) (ht : st.showTicks = false) :
+    (compileAxis side r proj st ticks layout).display = (axisGridlines side r proj st ticks).toArray := by
+  simp [compileAxis, hl, ht]
+
+/-- Omitting the line and the tick marks leaves the gridlines and the labels where they were. -/
+theorem compileAxis_bare_keeps {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+    (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) :
+    (compileAxis side r proj { st with showLine := false, showTicks := false } ticks layout).labels =
+        (compileAxis side r proj st ticks layout).labels ∧
+      (compileAxis side r proj { st with showLine := false, showTicks := false } ticks layout).display =
+        (axisGridlines side r proj st ticks).toArray := ⟨rfl, by simp [compileAxis, axisGridlines]⟩
+
+/-- Without labels the drawing has none. -/
+theorem compileAxis_no_labels {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+    (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) (h : st.showLabels = false) :
+    (compileAxis side r proj st ticks layout).labels = [] := by
+  simp [compileAxis, h]
+
+/-- Without tick marks, the display is the gridlines and the axis line alone. -/
+theorem compileAxis_no_ticks {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+    (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) (h : st.showTicks = false) :
+    (compileAxis side r proj st ticks layout).display =
+      (axisGridlines side r proj st ticks ++
+        (if st.showLine then
+          [segment st.line st.lineHalfWidth (side.pt (if side.horizontal then r.x0 else r.y0) (side.edge r))
+            (side.pt (if side.horizontal then r.x1 else r.y1) (side.edge r))] else [])).toArray := by
+  simp [compileAxis, h]
+
+/-- Without the axis line, the display is the gridlines and the tick marks alone. -/
+theorem compileAxis_no_line {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+    (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) (h : st.showLine = false) :
+    (compileAxis side r proj st ticks layout).display =
+      (axisGridlines side r proj st ticks ++
+        (if st.showTicks then ticks.map fun t =>
+          segment st.tick st.tickHalfWidth (side.pt (proj t) (side.edge r))
+            (side.pt (proj t) (side.edge r + side.outward * st.tickLength)) else [])).toArray := by
+  simp [compileAxis, h]
+
+/-- With tick marks shown, every tick has a tick mark whose both ends lie at the tick's projection
+along the axis. -/
 theorem compileAxis_tick {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
-    (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) {t : α} (h : t ∈ ticks) :
+    (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) (hs : st.showTicks = true)
+    {t : α} (h : t ∈ ticks) :
     ∃ c ∈ (compileAxis side r proj st ticks layout).display, ∃ a b,
       c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
       side.along a = proj t ∧ side.along b = proj t := by
   refine ⟨segment st.tick st.tickHalfWidth (side.pt (proj t) (side.edge r))
     (side.pt (proj t) (side.edge r + side.outward * st.tickLength)), ?_, _, _, rfl,
     Side.along_pt .., Side.along_pt ..⟩
-  simp only [compileAxis, List.mem_toArray, List.mem_append, List.mem_cons]
-  exact Or.inr (Or.inr (List.mem_map.2 ⟨t, h, rfl⟩))
+  simp only [compileAxis, hs, ite_true, List.mem_toArray, List.mem_append]
+  exact Or.inr (List.mem_map.2 ⟨t, h, rfl⟩)
 
 /-- With a grid, every tick has a gridline whose both ends lie at the tick's projection. -/
 theorem compileAxis_grid {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
@@ -154,17 +218,18 @@ theorem compileAxis_grid {α : Type u} (side : Side) (r : Rect) (proj : α → R
       side.along a = proj t ∧ side.along b = proj t := by
   refine ⟨segment p.1 p.2 (side.pt (proj t) (side.edge r)) (side.pt (proj t) (side.far r)), ?_, _, _,
     rfl, Side.along_pt .., Side.along_pt ..⟩
-  simp only [compileAxis, hg, List.mem_toArray, List.mem_append]
-  exact Or.inl (List.mem_map.2 ⟨t, h, rfl⟩)
+  simp only [compileAxis, axisGridlines, hg, List.mem_toArray, List.mem_append]
+  exact Or.inl (Or.inl (List.mem_map.2 ⟨t, h, rfl⟩))
 
-/-- Every label kept by the layout is placed, with the layout's rotation, anchored at its tick's
+/-- With labels shown, every label kept by the layout is placed, with the layout's rotation, anchored at its tick's
 projection along the axis. -/
 theorem compileAxis_label {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
-    (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) {l : α × String}
-    (h : l ∈ layout.kept) :
+    (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) (hs : st.showLabels = true)
+    {l : α × String} (h : l ∈ layout.kept) :
     ∃ pl ∈ (compileAxis side r proj st ticks layout).labels,
       pl.text = l.2 ∧ side.along pl.anchor = proj l.1 ∧ pl.rotation = layout.rotation := by
-  refine ⟨_, List.mem_map.2 ⟨l, h, rfl⟩, rfl, Side.along_pt .., rfl⟩
+  simp only [compileAxis, hs, ite_true]
+  exact ⟨_, List.mem_map.2 ⟨l, h, rfl⟩, rfl, Side.along_pt .., rfl⟩
 
 /-- Gridlines at `positions`, which need not be ticks, drawn with their own paint and half width. -/
 structure MinorGrid (α : Type u) where
@@ -316,12 +381,13 @@ def compilePixelAxis (side : Side) (r : Rect) (st : AxisStyle) (measure : String
 
 theorem compilePixelAxis_tick (side : Side) (r : Rect) (st : AxisStyle)
     (measure : String → Float × Float) (gap : Float) (pixels : List Float) (labels : List String)
-    {p : Float} {q : Rat} (hp : p ∈ pixels) (hq : Inkproof.Float.Float.toRat p = some q) :
+    (hs : st.showTicks = true) {p : Float} {q : Rat} (hp : p ∈ pixels)
+    (hq : Inkproof.Float.Float.toRat p = some q) :
     ∃ c ∈ (compilePixelAxis side r st measure gap pixels labels).display, ∃ a b,
       c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
       side.along a = q ∧ side.along b = q := by
   unfold compilePixelAxis
-  exact compileAxis_tick side r id st _ _ (t := q) (List.mem_filterMap.2 ⟨p, hp, hq⟩)
+  exact compileAxis_tick side r id st _ _ hs (t := q) (List.mem_filterMap.2 ⟨p, hp, hq⟩)
 
 /-- `compilePixelAxis` with minor gridlines at the given pixel positions. A position that is not a
 finite float is not drawn. -/
@@ -437,22 +503,22 @@ projection of it. -/
 theorem compileLinearAxis_tick (side : Side) (r : Rect) (s : Inkproof.Scale.Linear Float)
     (spec : TickSpec) (measure : String → Float × Float) (st : AxisStyle) {t : Float} {q : Rat}
     (ht : t ∈ Inkproof.Axis.linearScaleTicks s spec.target)
-    (hq : Inkproof.Float.Float.toRat (s.map t) = some q) :
+    (hs : st.showTicks = true) (hq : Inkproof.Float.Float.toRat (s.map t) = some q) :
     ∃ c ∈ (compileLinearAxis side r s spec measure st).display, ∃ a b,
       c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
       side.along a = q ∧ side.along b = q :=
-  compilePixelAxis_tick _ _ _ _ _ _ _ (List.mem_map.2 ⟨t, ht, rfl⟩) hq
+  compilePixelAxis_tick _ _ _ _ _ _ _ hs (List.mem_map.2 ⟨t, ht, rfl⟩) hq
 
 /-- Every tick of a log scale whose pixel is finite has a tick mark at the scale's own projection
 of it. -/
 theorem compileLogAxis_tick (side : Side) (r : Rect) (s : Inkproof.Scale.Log Float)
     (spec : TickSpec) (measure : String → Float × Float) (st : AxisStyle) {t : Float} {q : Rat}
     (ht : t ∈ Inkproof.Axis.logScaleTicks s spec.target)
-    (hq : Inkproof.Float.Float.toRat (s.map Float.log t) = some q) :
+    (hs : st.showTicks = true) (hq : Inkproof.Float.Float.toRat (s.map Float.log t) = some q) :
     ∃ c ∈ (compileLogAxis side r s spec measure st).display, ∃ a b,
       c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
       side.along a = q ∧ side.along b = q :=
-  compilePixelAxis_tick _ _ _ _ _ _ _ (List.mem_map.2 ⟨t, ht, rfl⟩) hq
+  compilePixelAxis_tick _ _ _ _ _ _ _ hs (List.mem_map.2 ⟨t, ht, rfl⟩) hq
 
 /-- An axis for a linear scale of seconds since 1970-01-01T00:00:00 UTC: ticks at the clock intervals
 `durationScaleTicks` chooses, labelled in UTC with `months` as the month names. `spec.locale` is not
@@ -469,11 +535,11 @@ of it. -/
 theorem compileTimeAxis_tick (side : Side) (r : Rect) (s : Inkproof.Scale.Linear Float)
     (spec : TickSpec) (months : List String) (measure : String → Float × Float) (st : AxisStyle)
     {t : Float} {q : Rat} (ht : t ∈ Inkproof.Axis.durationScaleTicks s spec.target)
-    (hq : Inkproof.Float.Float.toRat (s.map t) = some q) :
+    (hs : st.showTicks = true) (hq : Inkproof.Float.Float.toRat (s.map t) = some q) :
     ∃ c ∈ (compileTimeAxis side r s spec months measure st).display, ∃ a b,
       c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
       side.along a = q ∧ side.along b = q :=
-  compilePixelAxis_tick _ _ _ _ _ _ _ (List.mem_map.2 ⟨t, ht, rfl⟩) hq
+  compilePixelAxis_tick _ _ _ _ _ _ _ hs (List.mem_map.2 ⟨t, ht, rfl⟩) hq
 
 /-- `compileTimeAxis` with minor gridlines at the given times. -/
 def compileTimeAxisMinor (side : Side) (r : Rect) (s : Inkproof.Scale.Linear Float) (spec : TickSpec)
@@ -523,10 +589,10 @@ theorem compileCategoricalAxis_tick {κ : Type u} (side : Side) (r : Rect)
     (measure : String → Float × Float) (st : AxisStyle) {i : Nat} {q : Rat}
     (hi : i ∈ (Inkproof.Axis.categoricalIndices s.categories.size 0 s.categories.size.toFloat
       target).filter (· < s.categories.size))
-    (hq : Inkproof.Float.Float.toRat (bandCentrePixel s i) = some q) :
+    (hs : st.showTicks = true) (hq : Inkproof.Float.Float.toRat (bandCentrePixel s i) = some q) :
     ∃ c ∈ (compileCategoricalAxis side r s name target labelGap measure st).display, ∃ a b,
       c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
       side.along a = q ∧ side.along b = q :=
-  compilePixelAxis_tick _ _ _ _ _ _ _ (List.mem_map.2 ⟨i, hi, rfl⟩) hq
+  compilePixelAxis_tick _ _ _ _ _ _ _ hs (List.mem_map.2 ⟨i, hi, rfl⟩) hq
 
 end Inkproof.Scene

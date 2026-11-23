@@ -3,6 +3,7 @@
 ## v0.26.0
 
 - `MinorGrid` and `compileAxisMinor`, `compileLinearAxisMinor`, `compileLogAxisMinor`, `compileTimeAxisMinor`, `compilePixelAxisMinor` draw gridlines at positions with no tick or label.
+- `AxisStyle` gains `showLine`, `showTicks` and `showLabels` (default true) to omit each part of an axis independently; `compileAxis_tick`, `compileAxis_label` and the per-scale tick theorems now take the matching switch.
 
 ## v0.25.0
 

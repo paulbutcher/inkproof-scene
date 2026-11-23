@@ -11,7 +11,7 @@ open InkproofTools.Test Inkproof.Scene Inkproof.Core
 
 def paint : Paint := ⟨0, Color.mk 0 0 0 255⟩
 
-def style : AxisStyle := ⟨paint, 1/2, paint, 1/2, 4, some (paint, 1/4), 2⟩
+def style : AxisStyle := ⟨paint, 1/2, paint, 1/2, 4, some (paint, 1/4), 2, true, true, true⟩
 
 def plot : Rect := ⟨10, 10, 210, 110⟩
 
@@ -51,6 +51,20 @@ def minorLogAxis : TestCase := .mk "a log axis draws a minor gridline at every i
       check (a.x == b.x && 10 ≤ a.x && a.x ≤ 210) "gridline off the plot"
     | _ => check false "not a gridline"
 
+def omittedParts : TestCase := .mk "an axis omits its line, ticks or labels independently" <| do
+  let s : Inkproof.Scale.Linear Float := ⟨0, 100, 10, 210⟩
+  let full := compileLinearAxis .bottom plot s spec measure style
+  let n := (Inkproof.Axis.linearScaleTicks s spec.target).length
+  let d1 := compileLinearAxis .bottom plot s spec measure { style with showLine := false }
+  let d2 := compileLinearAxis .bottom plot s spec measure { style with showTicks := false }
+  let d3 := compileLinearAxis .bottom plot s spec measure { style with showLabels := false }
+  let bare := compileLinearAxis .bottom plot s spec measure { style with showLine := false, showTicks := false }
+  check (d1.display.size + 1 == full.display.size) "line not omitted alone"
+  check (d2.display.size + n == full.display.size) "ticks not omitted alone"
+  check (d3.display.size == full.display.size && d3.labels.isEmpty) "labels not omitted alone"
+  check (bare.display.size + 1 + n == full.display.size) "bare axis keeps more than gridlines"
+  check (bare.labels.map (·.anchor.x) == full.labels.map (·.anchor.x)) "labels moved"
+
 def minorSkipsOutside : TestCase := .mk "a minor gridline outside the plot or on a main gridline is not drawn" <| do
   let s : Inkproof.Scale.Linear Float := ⟨0, 100, 10, 210⟩
   let ts := Inkproof.Axis.linearScaleTicks s spec.target
@@ -86,6 +100,6 @@ def timeAxisMonths : TestCase := .mk "a time axis over a year names months" <| d
     check (months.any (l.text.startsWith ·)) s!"not a month: {l.text}"
 
 def tests : List TestCase :=
-  [descendingLinear, logAxis, minorLogAxis, minorSkipsOutside, categoricalAxis, timeAxisClock, timeAxisMonths]
+  [descendingLinear, logAxis, minorLogAxis, minorSkipsOutside, omittedParts, categoricalAxis, timeAxisClock, timeAxisMonths]
 
 end InkproofSceneTest.AxisTests
