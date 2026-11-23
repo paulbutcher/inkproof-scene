@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.25.0
+
+- `compileStackedBarsBy` sizes stacked bars as a fraction of the spacing between neighbouring x values, with theorems, and every width's unit is now stated in its doc comment and the README.
+
 ## v0.24.0
 
 - `DisplayList.scaleSizes` multiplies only strip half widths and marker radii by a factor, and `Shape.view` draws a shape under two linear scales, with a theorem that the two commute.
