@@ -34,8 +34,10 @@ The display list for Inkproof charts, the compilers that produce it, and a refer
 
 ## Requiring it
 
+Use the latest release tag listed in `CHANGELOG.md` in place of `vX.Y.Z`; `lakefile.lean` records the versions of the dependencies this library is built against.
+
 ```lean
-require «inkproof-scene» from git "https://github.com/paulbutcher/inkproof-scene" @ "v0.9.0"
+require «inkproof-scene» from git "https://github.com/paulbutcher/inkproof-scene" @ "vX.Y.Z"
 ```
 
 ## Drawing an axis
