@@ -150,7 +150,7 @@ inductive Shape where
   | text (box : Rect) (content : String)
   /-- The part of `inner` that lies in `box`: a scissor. -/
   | clipped (box : Rect) (inner : Shape)
-  deriving Repr
+  deriving DecidableEq, Repr
 
 /-- A drawing command. Commands are painted in ascending `layer`, and within a layer in list order,
 later over earlier; each paints its `color` over the pixels it covers. -/
@@ -158,7 +158,7 @@ structure Command where
   layer : Nat
   color : Shading
   shape : Shape
-  deriving Repr
+  deriving DecidableEq, Repr
 
 /-- The meaning of a display list is the commands in order. -/
 abbrev DisplayList := Array Command

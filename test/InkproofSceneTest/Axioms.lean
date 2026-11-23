@@ -8,3 +8,5 @@ import Inkproof.Scene
 open Lean Elab Command
 
 run_cmd liftCoreM (InkproofTools.AxiomCheck.check `Inkproof.Scene none)
+
+example (a b : Inkproof.Scene.DisplayList) : Decidable (a = b) := inferInstance

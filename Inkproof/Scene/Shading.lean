@@ -132,7 +132,7 @@ inductive Shading where
   /-- As `gradient`, but a stop's colour holds up to the next stop's position, where it changes at
   once to the next stop's colour (`evalSteps`). -/
   | steps (axis : GradientAxis) (first : Stop) (rest : List Stop)
-  deriving Repr
+  deriving DecidableEq, Repr
 
 instance : Coe Color Shading := ⟨Shading.flat⟩
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.29.0
+
+- `Shape`, `Shading` and `Command` derive `DecidableEq`, so `DisplayList` has decidable equality.
+
 ## v0.28.0
 
 - `TextStyle` (family, size, colour) is taken by axis labels (`AxisStyle.labelText`), axis titles (`placeAxisTitle`) and bar value labels (`barValueLabels`), and carried by `PlacedLabel.style`.

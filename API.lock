@@ -552,6 +552,8 @@ instance Inkproof.Scene.instDecidableEqColor : DecidableEq Inkproof.Scene.Color
 def Inkproof.Scene.instDecidableEqColor.decEq : (x x_1 : Inkproof.Scene.Color) → Decidable (x = x_1)
 instance Inkproof.Scene.instDecidableEqColumn : DecidableEq Inkproof.Scene.Column
 def Inkproof.Scene.instDecidableEqColumn.decEq : (x x_1 : Inkproof.Scene.Column) → Decidable (x = x_1)
+instance Inkproof.Scene.instDecidableEqCommand : DecidableEq Inkproof.Scene.Command
+def Inkproof.Scene.instDecidableEqCommand.decEq : (x x_1 : Inkproof.Scene.Command) → Decidable (x = x_1)
 instance Inkproof.Scene.instDecidableEqDash : DecidableEq Inkproof.Scene.Dash
 instance Inkproof.Scene.instDecidableEqDashPattern : DecidableEq Inkproof.Scene.DashPattern
 def Inkproof.Scene.instDecidableEqDashPattern.decEq : (x x_1 : Inkproof.Scene.DashPattern) → Decidable (x = x_1)
@@ -571,6 +573,10 @@ instance Inkproof.Scene.instDecidableEqRect : DecidableEq Inkproof.Scene.Rect
 def Inkproof.Scene.instDecidableEqRect.decEq : (x x_1 : Inkproof.Scene.Rect) → Decidable (x = x_1)
 instance Inkproof.Scene.instDecidableEqSeriesStyle : DecidableEq Inkproof.Scene.SeriesStyle
 def Inkproof.Scene.instDecidableEqSeriesStyle.decEq : (x x_1 : Inkproof.Scene.SeriesStyle) → Decidable (x = x_1)
+instance Inkproof.Scene.instDecidableEqShading : DecidableEq Inkproof.Scene.Shading
+def Inkproof.Scene.instDecidableEqShading.decEq : (x x_1 : Inkproof.Scene.Shading) → Decidable (x = x_1)
+instance Inkproof.Scene.instDecidableEqShape : DecidableEq Inkproof.Scene.Shape
+def Inkproof.Scene.instDecidableEqShape.decEq : (x x_1 : Inkproof.Scene.Shape) → Decidable (x = x_1)
 instance Inkproof.Scene.instDecidableEqSide : DecidableEq Inkproof.Scene.Side
 instance Inkproof.Scene.instDecidableEqStop : DecidableEq Inkproof.Scene.Stop
 def Inkproof.Scene.instDecidableEqStop.decEq : (x x_1 : Inkproof.Scene.Stop) → Decidable (x = x_1)
