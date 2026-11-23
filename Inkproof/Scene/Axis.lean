@@ -166,6 +166,87 @@ theorem compileAxis_label {α : Type u} (side : Side) (r : Rect) (proj : α → 
       pl.text = l.2 ∧ side.along pl.anchor = proj l.1 ∧ pl.rotation = layout.rotation := by
   refine ⟨_, List.mem_map.2 ⟨l, h, rfl⟩, rfl, Side.along_pt .., rfl⟩
 
+/-- Gridlines at `positions`, which need not be ticks, drawn with their own paint and half width. -/
+structure MinorGrid (α : Type u) where
+  paint : Paint
+  halfWidth : Rat
+  positions : List α
+
+/-- The gridlines a `MinorGrid` adds to an axis: one across the whole plot at each position that lies
+within the plot, is not drawn twice, and is not at a tick when the style has a main grid. -/
+def minorGridlines {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+    (m : MinorGrid α) (ticks : List α) : List Command :=
+  let lo := if side.horizontal then r.x0 else r.y0
+  let hi := if side.horizontal then r.x1 else r.y1
+  let taken := if st.grid.isSome then ticks.map proj else []
+  ((m.positions.map proj).filter fun p => decide (lo ≤ p ∧ p ≤ hi ∧ p ∉ taken)).eraseDups.map fun p =>
+    segment m.paint m.halfWidth (side.pt p (side.edge r)) (side.pt p (side.far r))
+
+/-- A position inside the plot that is not at a tick drawn with a main gridline has a minor gridline
+spanning the plot, at its projection. -/
+theorem minorGridlines_mem {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+    (m : MinorGrid α) (ticks : List α) {x : α} (hx : x ∈ m.positions)
+    (hlo : (if side.horizontal then r.x0 else r.y0) ≤ proj x)
+    (hhi : proj x ≤ (if side.horizontal then r.x1 else r.y1))
+    (ht : st.grid.isSome = true → proj x ∉ ticks.map proj) :
+    segment m.paint m.halfWidth (side.pt (proj x) (side.edge r)) (side.pt (proj x) (side.far r)) ∈
+      minorGridlines side r proj st m ticks := by
+  unfold minorGridlines
+  apply List.mem_map.2
+  refine ⟨proj x, ?_, rfl⟩
+  apply List.mem_eraseDups.2
+  apply List.mem_filter.2
+  refine ⟨List.mem_map.2 ⟨x, hx, rfl⟩, ?_⟩
+  simp only [decide_eq_true_eq]
+  refine ⟨hlo, hhi, ?_⟩
+  split
+  · rename_i h; exact ht h
+  · simp
+
+/-- Every minor gridline spans the plot at the projection of one of the positions, inside the plot. -/
+theorem minorGridlines_spec {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+    (m : MinorGrid α) (ticks : List α) {c : Command} (hc : c ∈ minorGridlines side r proj st m ticks) :
+    ∃ x ∈ m.positions,
+      c = segment m.paint m.halfWidth (side.pt (proj x) (side.edge r)) (side.pt (proj x) (side.far r)) ∧
+      (if side.horizontal then r.x0 else r.y0) ≤ proj x ∧
+      proj x ≤ (if side.horizontal then r.x1 else r.y1) := by
+  unfold minorGridlines at hc
+  obtain ⟨p, hp, rfl⟩ := List.mem_map.1 hc
+  obtain ⟨hp, hd⟩ := List.mem_filter.1 (List.mem_eraseDups.1 hp)
+  obtain ⟨x, hx, rfl⟩ := List.mem_map.1 hp
+  simp only [decide_eq_true_eq] at hd
+  exact ⟨x, hx, rfl, hd.1, hd.2.1⟩
+
+/-- The drawing with `lines` beneath its marks. -/
+def AxisDrawing.withMinor (d : AxisDrawing) (lines : List Command) : AxisDrawing :=
+  { d with display := lines.toArray ++ d.display }
+
+theorem AxisDrawing.withMinor_display (d : AxisDrawing) (lines : List Command) :
+    (d.withMinor lines).display = lines.toArray ++ d.display := rfl
+
+theorem AxisDrawing.withMinor_labels (d : AxisDrawing) (lines : List Command) :
+    (d.withMinor lines).labels = d.labels := rfl
+
+/-- `compileAxis` with minor gridlines drawn beneath its marks. -/
+def compileAxisMinor {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+    (minor : MinorGrid α) (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) :
+    AxisDrawing :=
+  (compileAxis side r proj st ticks layout).withMinor (minorGridlines side r proj st minor ticks)
+
+/-- The labels are those of the axis without minor gridlines. -/
+theorem compileAxisMinor_labels {α : Type u} (side : Side) (r : Rect) (proj : α → Rat)
+    (st : AxisStyle) (minor : MinorGrid α) (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) :
+    (compileAxisMinor side r proj st minor ticks layout).labels =
+      (compileAxis side r proj st ticks layout).labels := rfl
+
+/-- The display is the minor gridlines followed by the display of the axis without them, so its tick
+marks, axis line and main gridlines are unchanged. -/
+theorem compileAxisMinor_display {α : Type u} (side : Side) (r : Rect) (proj : α → Rat)
+    (st : AxisStyle) (minor : MinorGrid α) (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) :
+    (compileAxisMinor side r proj st minor ticks layout).display =
+      (minorGridlines side r proj st minor ticks).toArray ++
+        (compileAxis side r proj st ticks layout).display := rfl
+
 /-- A point's coordinate across the axis. -/
 def Side.across (s : Side) (p : Pt) : Rat :=
   if s.horizontal then p.y else p.x
@@ -242,6 +323,48 @@ theorem compilePixelAxis_tick (side : Side) (r : Rect) (st : AxisStyle)
   unfold compilePixelAxis
   exact compileAxis_tick side r id st _ _ (t := q) (List.mem_filterMap.2 ⟨p, hp, hq⟩)
 
+/-- `compilePixelAxis` with minor gridlines at the given pixel positions. A position that is not a
+finite float is not drawn. -/
+def compilePixelAxisMinor (side : Side) (r : Rect) (st : AxisStyle) (measure : String → Float × Float)
+    (gap : Float) (pixels : List Float) (labels : List String) (minor : MinorGrid Float) : AxisDrawing :=
+  (compilePixelAxis side r st measure gap pixels labels).withMinor
+    (minorGridlines side r id st ⟨minor.paint, minor.halfWidth, minor.positions.filterMap Inkproof.Float.Float.toRat⟩
+      (pixels.filterMap Inkproof.Float.Float.toRat))
+
+/-- The labels are those of the axis without minor gridlines. -/
+theorem compilePixelAxisMinor_labels (side : Side) (r : Rect) (st : AxisStyle)
+    (measure : String → Float × Float) (gap : Float) (pixels : List Float) (labels : List String)
+    (minor : MinorGrid Float) :
+    (compilePixelAxisMinor side r st measure gap pixels labels minor).labels =
+      (compilePixelAxis side r st measure gap pixels labels).labels := rfl
+
+/-- The display is the minor gridlines followed by the display of the axis without them. -/
+theorem compilePixelAxisMinor_display (side : Side) (r : Rect) (st : AxisStyle)
+    (measure : String → Float × Float) (gap : Float) (pixels : List Float) (labels : List String)
+    (minor : MinorGrid Float) :
+    (compilePixelAxisMinor side r st measure gap pixels labels minor).display =
+      (minorGridlines side r id st ⟨minor.paint, minor.halfWidth, minor.positions.filterMap Inkproof.Float.Float.toRat⟩
+        (pixels.filterMap Inkproof.Float.Float.toRat)).toArray ++
+        (compilePixelAxis side r st measure gap pixels labels).display := rfl
+
+/-- A position whose pixel is a finite `q` inside the plot, and which is not at a tick drawn with a main
+gridline, has a minor gridline spanning the plot at `q`. -/
+theorem compilePixelAxisMinor_line (side : Side) (r : Rect) (st : AxisStyle)
+    (measure : String → Float × Float) (gap : Float) (pixels : List Float) (labels : List String)
+    (minor : MinorGrid Float) {p : Float} {q : Rat} (hp : p ∈ minor.positions)
+    (hq : Inkproof.Float.Float.toRat p = some q)
+    (hlo : (if side.horizontal then r.x0 else r.y0) ≤ q)
+    (hhi : q ≤ (if side.horizontal then r.x1 else r.y1))
+    (ht : st.grid.isSome = true → q ∉ pixels.filterMap Inkproof.Float.Float.toRat) :
+    segment minor.paint minor.halfWidth (side.pt q (side.edge r)) (side.pt q (side.far r)) ∈
+      (compilePixelAxisMinor side r st measure gap pixels labels minor).display := by
+  have h := minorGridlines_mem side r id st
+    ⟨minor.paint, minor.halfWidth, minor.positions.filterMap Inkproof.Float.Float.toRat⟩
+    (pixels.filterMap Inkproof.Float.Float.toRat) (x := q) (List.mem_filterMap.2 ⟨p, hp, hq⟩) hlo hhi
+    (by simpa using ht)
+  simp only [compilePixelAxisMinor, AxisDrawing.withMinor, Array.mem_append, List.mem_toArray]
+  exact Or.inl h
+
 /-- An axis for a linear scale: ticks where `linearScaleTicks` puts them, at the pixel the scale
 maps each to. -/
 def compileLinearAxis (side : Side) (r : Rect) (s : Inkproof.Scale.Linear Float) (spec : TickSpec)
@@ -250,6 +373,25 @@ def compileLinearAxis (side : Side) (r : Rect) (s : Inkproof.Scale.Linear Float)
   compilePixelAxis side r st measure spec.labelGap (ts.map s.map)
     (Inkproof.Axis.tickLabels spec.locale ts)
 
+/-- `compileLinearAxis` with minor gridlines at the given data values. -/
+def compileLinearAxisMinor (side : Side) (r : Rect) (s : Inkproof.Scale.Linear Float) (spec : TickSpec)
+    (measure : String → Float × Float) (st : AxisStyle) (minor : MinorGrid Float) : AxisDrawing :=
+  let ts := Inkproof.Axis.linearScaleTicks s spec.target
+  compilePixelAxisMinor side r st measure spec.labelGap (ts.map s.map)
+    (Inkproof.Axis.tickLabels spec.locale ts) ⟨minor.paint, minor.halfWidth, minor.positions.map s.map⟩
+
+/-- A position of the data whose pixel is a finite `q` inside the plot, and which is not at a tick drawn
+with a main gridline, has a minor gridline spanning the plot at `q`. -/
+theorem compileLinearAxisMinor_line (side : Side) (r : Rect) (s : Inkproof.Scale.Linear Float) (spec : TickSpec)
+    (measure : String → Float × Float) (st : AxisStyle) (minor : MinorGrid Float) {p : Float} {q : Rat}
+    (hp : p ∈ minor.positions) (hq : Inkproof.Float.Float.toRat (s.map p) = some q)
+    (hlo : (if side.horizontal then r.x0 else r.y0) ≤ q)
+    (hhi : q ≤ (if side.horizontal then r.x1 else r.y1))
+    (ht : st.grid.isSome = true → q ∉ ((Inkproof.Axis.linearScaleTicks s spec.target).map s.map).filterMap Inkproof.Float.Float.toRat) :
+    segment minor.paint minor.halfWidth (side.pt q (side.edge r)) (side.pt q (side.far r)) ∈
+      (compileLinearAxisMinor side r s spec measure st minor).display :=
+  compilePixelAxisMinor_line _ _ _ _ _ _ _ _ (List.mem_map.2 ⟨p, hp, rfl⟩) hq hlo hhi ht
+
 /-- An axis for a logarithmic scale: ticks where `logScaleTicks` puts them, at the pixel the scale
 maps each to. -/
 def compileLogAxis (side : Side) (r : Rect) (s : Inkproof.Scale.Log Float) (spec : TickSpec)
@@ -257,6 +399,38 @@ def compileLogAxis (side : Side) (r : Rect) (s : Inkproof.Scale.Log Float) (spec
   let ts := Inkproof.Axis.logScaleTicks s spec.target
   compilePixelAxis side r st measure spec.labelGap (ts.map (s.map Float.log))
     (Inkproof.Axis.tickLabels spec.locale ts)
+
+/-- `compileLogAxis` with minor gridlines at the given data values. -/
+def compileLogAxisMinor (side : Side) (r : Rect) (s : Inkproof.Scale.Log Float) (spec : TickSpec)
+    (measure : String → Float × Float) (st : AxisStyle) (minor : MinorGrid Float) : AxisDrawing :=
+  let ts := Inkproof.Axis.logScaleTicks s spec.target
+  compilePixelAxisMinor side r st measure spec.labelGap (ts.map (s.map Float.log))
+    (Inkproof.Axis.tickLabels spec.locale ts) ⟨minor.paint, minor.halfWidth, minor.positions.map (s.map Float.log)⟩
+
+/-- A position of the data whose pixel is a finite `q` inside the plot, and which is not at a tick drawn
+with a main gridline, has a minor gridline spanning the plot at `q`. -/
+theorem compileLogAxisMinor_line (side : Side) (r : Rect) (s : Inkproof.Scale.Log Float) (spec : TickSpec)
+    (measure : String → Float × Float) (st : AxisStyle) (minor : MinorGrid Float) {p : Float} {q : Rat}
+    (hp : p ∈ minor.positions) (hq : Inkproof.Float.Float.toRat (s.map Float.log p) = some q)
+    (hlo : (if side.horizontal then r.x0 else r.y0) ≤ q)
+    (hhi : q ≤ (if side.horizontal then r.x1 else r.y1))
+    (ht : st.grid.isSome = true → q ∉ ((Inkproof.Axis.logScaleTicks s spec.target).map (s.map Float.log)).filterMap Inkproof.Float.Float.toRat) :
+    segment minor.paint minor.halfWidth (side.pt q (side.edge r)) (side.pt q (side.far r)) ∈
+      (compileLogAxisMinor side r s spec measure st minor).display :=
+  compilePixelAxisMinor_line _ _ _ _ _ _ _ _ (List.mem_map.2 ⟨p, hp, rfl⟩) hq hlo hhi ht
+
+/-- The labels and display of a linear axis with minor gridlines are those of the plain axis, with the
+minor gridlines beneath. -/
+theorem compileLinearAxisMinor_labels (side : Side) (r : Rect) (s : Inkproof.Scale.Linear Float)
+    (spec : TickSpec) (measure : String → Float × Float) (st : AxisStyle) (minor : MinorGrid Float) :
+    (compileLinearAxisMinor side r s spec measure st minor).labels =
+      (compileLinearAxis side r s spec measure st).labels := rfl
+
+/-- As `compileLinearAxisMinor_labels`, for a log axis. -/
+theorem compileLogAxisMinor_labels (side : Side) (r : Rect) (s : Inkproof.Scale.Log Float)
+    (spec : TickSpec) (measure : String → Float × Float) (st : AxisStyle) (minor : MinorGrid Float) :
+    (compileLogAxisMinor side r s spec measure st minor).labels =
+      (compileLogAxis side r s spec measure st).labels := rfl
 
 /-- Every tick of a linear scale whose pixel is finite has a tick mark at the scale's own
 projection of it. -/
@@ -300,6 +474,27 @@ theorem compileTimeAxis_tick (side : Side) (r : Rect) (s : Inkproof.Scale.Linear
       c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
       side.along a = q ∧ side.along b = q :=
   compilePixelAxis_tick _ _ _ _ _ _ _ (List.mem_map.2 ⟨t, ht, rfl⟩) hq
+
+/-- `compileTimeAxis` with minor gridlines at the given times. -/
+def compileTimeAxisMinor (side : Side) (r : Rect) (s : Inkproof.Scale.Linear Float) (spec : TickSpec)
+    (months : List String) (measure : String → Float × Float) (st : AxisStyle) (minor : MinorGrid Float) :
+    AxisDrawing :=
+  let ts := Inkproof.Axis.durationScaleTicks s spec.target
+  let step := Inkproof.Axis.durationStep (s.domainEnd - s.domainStart).abs spec.target
+  compilePixelAxisMinor side r st measure spec.labelGap (ts.map s.map)
+    (Inkproof.Axis.timeTickLabels months step ts) ⟨minor.paint, minor.halfWidth, minor.positions.map s.map⟩
+
+/-- A position of the data whose pixel is a finite `q` inside the plot, and which is not at a tick drawn
+with a main gridline, has a minor gridline spanning the plot at `q`. -/
+theorem compileTimeAxisMinor_line (side : Side) (r : Rect) (s : Inkproof.Scale.Linear Float) (spec : TickSpec) (months : List String)
+    (measure : String → Float × Float) (st : AxisStyle) (minor : MinorGrid Float) {p : Float} {q : Rat}
+    (hp : p ∈ minor.positions) (hq : Inkproof.Float.Float.toRat (s.map p) = some q)
+    (hlo : (if side.horizontal then r.x0 else r.y0) ≤ q)
+    (hhi : q ≤ (if side.horizontal then r.x1 else r.y1))
+    (ht : st.grid.isSome = true → q ∉ ((Inkproof.Axis.durationScaleTicks s spec.target).map s.map).filterMap Inkproof.Float.Float.toRat) :
+    segment minor.paint minor.halfWidth (side.pt q (side.edge r)) (side.pt q (side.far r)) ∈
+      (compileTimeAxisMinor side r s spec months measure st minor).display :=
+  compilePixelAxisMinor_line _ _ _ _ _ _ _ _ (List.mem_map.2 ⟨p, hp, rfl⟩) hq hlo hhi ht
 
 /-- The pixel at the centre of band `i` of a categorical scale. -/
 def bandCentrePixel {κ : Type u} (s : Inkproof.Scale.Categorical κ Float) (i : Nat) : Float :=

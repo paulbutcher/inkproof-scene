@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.26.0
+
+- `MinorGrid` and `compileAxisMinor`, `compileLinearAxisMinor`, `compileLogAxisMinor`, `compileTimeAxisMinor`, `compilePixelAxisMinor` draw gridlines at positions with no tick or label.
+
 ## v0.25.0
 
 - `compileStackedBarsBy` sizes stacked bars as a fraction of the spacing between neighbouring x values, with theorems, and every width's unit is now stated in its doc comment and the README.

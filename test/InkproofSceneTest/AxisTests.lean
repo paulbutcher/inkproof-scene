@@ -35,6 +35,30 @@ def logAxis : TestCase := .mk "a log axis puts a mark for each decade" <|
   let d := compileLogAxis .bottom plot s spec measure style
   check (d.labels.map (·.text) == ["1", "10", "100", "1,000"]) "labels differ"
 
+def minorLogAxis : TestCase := .mk "a log axis draws a minor gridline at every integer multiple, none labelled" <| do
+  let s : Inkproof.Scale.Log Float := ⟨1, 1000, 10, 210⟩
+  let minor : MinorGrid Float := ⟨paint, 1/8, (List.range 8).map fun i => (i + 2).toFloat * 10⟩
+  let plain := compileLogAxis .bottom plot s spec measure style
+  let d := compileLogAxisMinor .bottom plot s spec measure style minor
+  let lines := d.display.size - plain.display.size
+  check (lines == 8) s!"expected 8 minor gridlines, got {lines}"
+  check (d.labels.map (·.text) == plain.labels.map (·.text)) "labels changed"
+  check (d.labels.length < lines) "not fewer labels than gridlines"
+  for c in d.display.toList.take lines do
+    match c.shape with
+    | .strip w [.val a, .val b] =>
+      check (w == 1/8) "wrong width"
+      check (a.x == b.x && 10 ≤ a.x && a.x ≤ 210) "gridline off the plot"
+    | _ => check false "not a gridline"
+
+def minorSkipsOutside : TestCase := .mk "a minor gridline outside the plot or on a main gridline is not drawn" <| do
+  let s : Inkproof.Scale.Linear Float := ⟨0, 100, 10, 210⟩
+  let ts := Inkproof.Axis.linearScaleTicks s spec.target
+  let minor : MinorGrid Float := ⟨paint, 1/8, [-50, 500] ++ ts⟩
+  let d := compileLinearAxisMinor .bottom plot s spec measure style minor
+  check (d.display.size == (compileLinearAxis .bottom plot s spec measure style).display.size)
+    "extra gridlines drawn"
+
 def categoricalAxis : TestCase := .mk "a categorical axis labels each band at its centre" <| do
   let s : Inkproof.Scale.Categorical String Float := ⟨#["a", "b", "c", "d"], 10, 210⟩
   let d := compileCategoricalAxis .bottom plot s id 6 4 measure style
@@ -62,6 +86,6 @@ def timeAxisMonths : TestCase := .mk "a time axis over a year names months" <| d
     check (months.any (l.text.startsWith ·)) s!"not a month: {l.text}"
 
 def tests : List TestCase :=
-  [descendingLinear, logAxis, categoricalAxis, timeAxisClock, timeAxisMonths]
+  [descendingLinear, logAxis, minorLogAxis, minorSkipsOutside, categoricalAxis, timeAxisClock, timeAxisMonths]
 
 end InkproofSceneTest.AxisTests
