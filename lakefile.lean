@@ -15,7 +15,7 @@ package «inkproof-scene» where
 require «inkproof-float» from git "https://github.com/paulbutcher/inkproof-float" @ "v0.5.0"
 require «inkproof-core» from git "https://github.com/paulbutcher/inkproof-core" @ "v0.14.0"
 require «inkproof-scale» from git "https://github.com/paulbutcher/inkproof-scale" @ "v0.9.0"
-require «inkproof-axis» from git "https://github.com/paulbutcher/inkproof-axis" @ "v0.7.0"
+require «inkproof-axis» from git "https://github.com/paulbutcher/inkproof-axis" @ "v0.14.0"
 
 @[default_target]
 lean_lib InkproofScene where

@@ -110,7 +110,15 @@ def timeAxisMonths : TestCase := .mk "a time axis over a year names months" <| d
   for l in d.labels do
     check (months.any (l.text.startsWith ·)) s!"not a month: {l.text}"
 
+def timeAxisContext : TestCase := .mk "a time axis names the year once, on its first label, and a linear axis names none" <| do
+  let s : Inkproof.Scale.Linear Float := ⟨0, 365 * 86400, 10, 210⟩
+  let d := compileTimeAxis .bottom plot s spec months measure style
+  check (d.labels.filterMap (·.context) == ["1970"]) s!"contexts {d.labels.filterMap (·.context)}"
+  check (d.labels.head?.bind (·.context) == some "1970") "first label has no year"
+  let lin := compileLinearAxis .bottom plot ⟨0, 100, 10, 210⟩ spec measure style
+  check (lin.labels.all (·.context.isNone)) "linear label with context"
+
 def tests : List TestCase :=
-  [descendingLinear, logAxis, minorLogAxis, minorSkipsOutside, omittedParts, textStyle, categoricalAxis, timeAxisClock, timeAxisMonths]
+  [descendingLinear, logAxis, minorLogAxis, minorSkipsOutside, omittedParts, textStyle, categoricalAxis, timeAxisClock, timeAxisMonths, timeAxisContext]
 
 end InkproofSceneTest.AxisTests

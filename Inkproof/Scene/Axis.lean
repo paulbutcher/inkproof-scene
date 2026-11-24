@@ -8,6 +8,7 @@ import Inkproof.Axis.Scales
 import Inkproof.Axis.Ticks
 import Inkproof.Axis.TickLabels
 import Inkproof.Axis.TimeLabel
+import Inkproof.Axis.MonthTicks
 import Inkproof.Scale.Categorical
 import Inkproof.Scale.Linear
 import Inkproof.Scale.Log
@@ -102,12 +103,14 @@ structure AxisStyle where
   showLabels : Bool := true
   labelText : TextStyle := {}
 
-/-- A label for the host's text layer: its text, the point it is anchored at, its turn and how it is set. -/
+/-- A label for the host's text layer: its text, the point it is anchored at, its turn and how it is set.
+`context` is an optional second line, such as the year a time axis label begins. -/
 structure PlacedLabel where
   text : String
   anchor : Pt
   rotation : Inkproof.Axis.Rotation
   style : TextStyle := {}
+  context : Option String := none
 
 /-- An axis as drawn: the marks, and the labels the host's text layer places. -/
 structure AxisDrawing where
@@ -134,20 +137,20 @@ A missing value has no label. -/
 def barValueLabels {α : Type u} {β : Type v} [LE α] (style : TextStyle) (format : β → String)
     (proj : Projection α β) (s : Series α β) : List PlacedLabel :=
   (s.points.filterMap fun (x, v) =>
-    v.map fun y => ⟨format y, ⟨proj.x x, proj.y y⟩, .horizontal, style⟩).toList
+    v.map fun y => ⟨format y, ⟨proj.x x, proj.y y⟩, .horizontal, style, none⟩).toList
 
 /-- The labels are those of the series' points in order, one for each present value and none for a missing one. -/
 theorem barValueLabels_eq {α : Type u} {β : Type v} [LE α] (style : TextStyle) (format : β → String)
     (proj : Projection α β) (s : Series α β) :
     barValueLabels style format proj s =
       s.points.toList.filterMap fun (x, v) =>
-        v.map fun y => ⟨format y, ⟨proj.x x, proj.y y⟩, .horizontal, style⟩ := by
+        v.map fun y => ⟨format y, ⟨proj.x x, proj.y y⟩, .horizontal, style, none⟩ := by
   simp [barValueLabels]
 
 /-- Each present value has a label anchored at its bar's end, in the given style. -/
 theorem mem_barValueLabels {α : Type u} {β : Type v} [LE α] (style : TextStyle) (format : β → String)
     (proj : Projection α β) (s : Series α β) {x : α} {y : β} (h : (x, some y) ∈ s.points) :
-    (⟨format y, ⟨proj.x x, proj.y y⟩, .horizontal, style⟩ : PlacedLabel) ∈
+    (⟨format y, ⟨proj.x x, proj.y y⟩, .horizontal, style, none⟩ : PlacedLabel) ∈
       barValueLabels style format proj s :=
   Array.mem_toList_iff.2 (Array.mem_filterMap.2 ⟨(x, some y), h, rfl⟩)
 
@@ -156,7 +159,8 @@ theorem mem_barValueLabels {α : Type u} {β : Type v} [LE α] (style : TextStyl
 mark, unless the style omits them, and, if the style has a grid, a gridline; `layout` is Axis's choice of which labelled ticks to
 show and how to turn them. -/
 def compileAxis {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
-    (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) : AxisDrawing :=
+    (ticks : List α) (layout : Inkproof.Axis.Layout (α × String))
+    (context : α × String → Option String := fun _ => none) : AxisDrawing :=
   let lo := if side.horizontal then r.x0 else r.y0
   let hi := if side.horizontal then r.x1 else r.y1
   let e := side.edge r
@@ -167,12 +171,12 @@ def compileAxis {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st :
   { display := (axisGridlines side r proj st ticks ++ (if st.showLine then [axisLine] else []) ++
       (if st.showTicks then marks else [])).toArray
     labels := if st.showLabels then layout.kept.map fun l =>
-      ⟨l.2, side.pt (proj l.1) (tickEnd + side.outward * st.labelGap), layout.rotation, st.labelText⟩ else [] }
+      ⟨l.2, side.pt (proj l.1) (tickEnd + side.outward * st.labelGap), layout.rotation, st.labelText, context l⟩ else [] }
 
 /-- The display is the gridlines, then the axis line if shown, then the tick marks if shown. -/
-theorem compileAxis_display {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+theorem compileAxis_display {α : Type u} {context : α × String → Option String} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
     (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) :
-    (compileAxis side r proj st ticks layout).display =
+    (compileAxis side r proj st ticks layout context).display =
       (axisGridlines side r proj st ticks ++
         (if st.showLine then
           [segment st.line st.lineHalfWidth (side.pt (if side.horizontal then r.x0 else r.y0) (side.edge r))
@@ -182,42 +186,42 @@ theorem compileAxis_display {α : Type u} (side : Side) (r : Rect) (proj : α �
             (side.pt (proj t) (side.edge r + side.outward * st.tickLength)) else [])).toArray := rfl
 
 /-- With the line and the tick marks omitted, the display is the gridlines alone. -/
-theorem compileAxis_display_bare {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+theorem compileAxis_display_bare {α : Type u} {context : α × String → Option String} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
     (ticks : List α) (layout : Inkproof.Axis.Layout (α × String))
     (hl : st.showLine = false) (ht : st.showTicks = false) :
-    (compileAxis side r proj st ticks layout).display = (axisGridlines side r proj st ticks).toArray := by
+    (compileAxis side r proj st ticks layout context).display = (axisGridlines side r proj st ticks).toArray := by
   simp [compileAxis, hl, ht]
 
 /-- Omitting the line and the tick marks leaves the gridlines and the labels where they were. -/
-theorem compileAxis_bare_keeps {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+theorem compileAxis_bare_keeps {α : Type u} {context : α × String → Option String} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
     (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) :
-    (compileAxis side r proj { st with showLine := false, showTicks := false } ticks layout).labels =
-        (compileAxis side r proj st ticks layout).labels ∧
-      (compileAxis side r proj { st with showLine := false, showTicks := false } ticks layout).display =
+    (compileAxis side r proj { st with showLine := false, showTicks := false } ticks layout context).labels =
+        (compileAxis side r proj st ticks layout context).labels ∧
+      (compileAxis side r proj { st with showLine := false, showTicks := false } ticks layout context).display =
         (axisGridlines side r proj st ticks).toArray := ⟨rfl, by simp [compileAxis, axisGridlines]⟩
 
 /-- The label text style changes only the labels' style: the display is unchanged, and so are the labels' text, anchors
 and rotation. -/
-theorem compileAxis_labelText {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+theorem compileAxis_labelText {α : Type u} {context : α × String → Option String} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
     (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) (t : TextStyle) :
-    (compileAxis side r proj { st with labelText := t } ticks layout).display =
-        (compileAxis side r proj st ticks layout).display ∧
-      (compileAxis side r proj { st with labelText := t } ticks layout).labels =
-        (compileAxis side r proj st ticks layout).labels.map ({ · with style := t }) := by
+    (compileAxis side r proj { st with labelText := t } ticks layout context).display =
+        (compileAxis side r proj st ticks layout context).display ∧
+      (compileAxis side r proj { st with labelText := t } ticks layout context).labels =
+        (compileAxis side r proj st ticks layout context).labels.map ({ · with style := t }) := by
   refine ⟨rfl, ?_⟩
   simp only [compileAxis]
   split <;> simp [Function.comp_def]
 
 /-- Without labels the drawing has none. -/
-theorem compileAxis_no_labels {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+theorem compileAxis_no_labels {α : Type u} {context : α × String → Option String} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
     (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) (h : st.showLabels = false) :
-    (compileAxis side r proj st ticks layout).labels = [] := by
+    (compileAxis side r proj st ticks layout context).labels = [] := by
   simp [compileAxis, h]
 
 /-- Without tick marks, the display is the gridlines and the axis line alone. -/
-theorem compileAxis_no_ticks {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+theorem compileAxis_no_ticks {α : Type u} {context : α × String → Option String} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
     (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) (h : st.showTicks = false) :
-    (compileAxis side r proj st ticks layout).display =
+    (compileAxis side r proj st ticks layout context).display =
       (axisGridlines side r proj st ticks ++
         (if st.showLine then
           [segment st.line st.lineHalfWidth (side.pt (if side.horizontal then r.x0 else r.y0) (side.edge r))
@@ -225,9 +229,9 @@ theorem compileAxis_no_ticks {α : Type u} (side : Side) (r : Rect) (proj : α �
   simp [compileAxis, h]
 
 /-- Without the axis line, the display is the gridlines and the tick marks alone. -/
-theorem compileAxis_no_line {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+theorem compileAxis_no_line {α : Type u} {context : α × String → Option String} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
     (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) (h : st.showLine = false) :
-    (compileAxis side r proj st ticks layout).display =
+    (compileAxis side r proj st ticks layout context).display =
       (axisGridlines side r proj st ticks ++
         (if st.showTicks then ticks.map fun t =>
           segment st.tick st.tickHalfWidth (side.pt (proj t) (side.edge r))
@@ -236,10 +240,10 @@ theorem compileAxis_no_line {α : Type u} (side : Side) (r : Rect) (proj : α �
 
 /-- With tick marks shown, every tick has a tick mark whose both ends lie at the tick's projection
 along the axis. -/
-theorem compileAxis_tick {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+theorem compileAxis_tick {α : Type u} {context : α × String → Option String} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
     (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) (hs : st.showTicks = true)
     {t : α} (h : t ∈ ticks) :
-    ∃ c ∈ (compileAxis side r proj st ticks layout).display, ∃ a b,
+    ∃ c ∈ (compileAxis side r proj st ticks layout context).display, ∃ a b,
       c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
       side.along a = proj t ∧ side.along b = proj t := by
   refine ⟨segment st.tick st.tickHalfWidth (side.pt (proj t) (side.edge r))
@@ -249,10 +253,10 @@ theorem compileAxis_tick {α : Type u} (side : Side) (r : Rect) (proj : α → R
   exact Or.inr (List.mem_map.2 ⟨t, h, rfl⟩)
 
 /-- With a grid, every tick has a gridline whose both ends lie at the tick's projection. -/
-theorem compileAxis_grid {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+theorem compileAxis_grid {α : Type u} {context : α × String → Option String} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
     (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) {p : Paint × Rat}
     (hg : st.grid = some p) {t : α} (h : t ∈ ticks) :
-    ∃ c ∈ (compileAxis side r proj st ticks layout).display, ∃ a b,
+    ∃ c ∈ (compileAxis side r proj st ticks layout context).display, ∃ a b,
       c.shape = .strip p.2 [.val a, .val b] ∧
       side.along a = proj t ∧ side.along b = proj t := by
   refine ⟨segment p.1 p.2 (side.pt (proj t) (side.edge r)) (side.pt (proj t) (side.far r)), ?_, _, _,
@@ -262,13 +266,14 @@ theorem compileAxis_grid {α : Type u} (side : Side) (r : Rect) (proj : α → R
 
 /-- With labels shown, every label kept by the layout is placed, with the layout's rotation, anchored at its tick's
 projection along the axis. -/
-theorem compileAxis_label {α : Type u} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
+theorem compileAxis_label {α : Type u} {context : α × String → Option String} (side : Side) (r : Rect) (proj : α → Rat) (st : AxisStyle)
     (ticks : List α) (layout : Inkproof.Axis.Layout (α × String)) (hs : st.showLabels = true)
     {l : α × String} (h : l ∈ layout.kept) :
-    ∃ pl ∈ (compileAxis side r proj st ticks layout).labels,
-      pl.text = l.2 ∧ side.along pl.anchor = proj l.1 ∧ pl.rotation = layout.rotation := by
+    ∃ pl ∈ (compileAxis side r proj st ticks layout context).labels,
+      pl.text = l.2 ∧ side.along pl.anchor = proj l.1 ∧ pl.rotation = layout.rotation ∧
+        pl.context = context l := by
   simp only [compileAxis, hs, ite_true]
-  exact ⟨_, List.mem_map.2 ⟨l, h, rfl⟩, rfl, Side.along_pt .., rfl⟩
+  exact ⟨_, List.mem_map.2 ⟨l, h, rfl⟩, rfl, Side.along_pt .., rfl, rfl⟩
 
 /-- Gridlines at `positions`, which need not be ticks, drawn with their own paint and half width. -/
 structure MinorGrid (α : Type u) where
@@ -367,7 +372,7 @@ def placeAxisTitle (side : Side) (r : Rect) (extent gap : Rat) (text : String)
   let lo := if side.horizontal then r.x0 else r.y0
   let hi := if side.horizontal then r.x1 else r.y1
   ⟨text, side.pt ((lo + hi) / 2) (side.edge r + side.outward * (extent + gap)),
-    if side.horizontal then .horizontal else .vertical, style⟩
+    if side.horizontal then .horizontal else .vertical, style, none⟩
 
 /-- The title is set in the given style. -/
 theorem placeAxisTitle_style (side : Side) (r : Rect) (extent gap : Rat) (text : String) (s : TextStyle) :
@@ -412,62 +417,123 @@ structure TickSpec where
 position is not a finite float is not drawn. Labels pair with the ticks in order, and as many are
 shown as `layoutLabels` can fit. -/
 def compilePixelAxis (side : Side) (r : Rect) (st : AxisStyle) (measure : String → Float × Float)
-    (gap : Float) (pixels : List Float) (labels : List String) : AxisDrawing :=
+    (gap : Float) (pixels : List Float) (labels : List String)
+    (contexts : List (Option String) := []) : AxisDrawing :=
   let placed := pixels.zip labels
   let layout : Inkproof.Axis.Layout (Float × String) :=
     if side.horizontal then Inkproof.Axis.layoutLabels measure gap (placed.mergeSort fun a b => a.1 ≤ b.1)
     else
       let (stride, kept) := Inkproof.Axis.layoutLabelsVertical measure gap placed
       ⟨.horizontal, stride, kept⟩
+  let table := pixels.zip (labels.zip contexts) |>.filterMap fun (p, t, c) =>
+    (Inkproof.Float.Float.toRat p).map fun q => ((q, t), c)
   compileAxis side r id st (pixels.filterMap Inkproof.Float.Float.toRat)
     ⟨layout.rotation, layout.stride, layout.kept.filterMap fun l =>
       (Inkproof.Float.Float.toRat l.1).map (·, l.2)⟩
+    fun l => (table.find? (·.1 == l)).bind (·.2)
 
 theorem compilePixelAxis_tick (side : Side) (r : Rect) (st : AxisStyle)
     (measure : String → Float × Float) (gap : Float) (pixels : List Float) (labels : List String)
+    (contexts : List (Option String))
     (hs : st.showTicks = true) {p : Float} {q : Rat} (hp : p ∈ pixels)
     (hq : Inkproof.Float.Float.toRat p = some q) :
-    ∃ c ∈ (compilePixelAxis side r st measure gap pixels labels).display, ∃ a b,
+    ∃ c ∈ (compilePixelAxis side r st measure gap pixels labels contexts).display, ∃ a b,
       c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
       side.along a = q ∧ side.along b = q := by
   unfold compilePixelAxis
   exact compileAxis_tick side r id st _ _ hs (t := q) (List.mem_filterMap.2 ⟨p, hp, hq⟩)
 
+/-- Without contexts no label has one. -/
+theorem compilePixelAxis_no_context (side : Side) (r : Rect) (st : AxisStyle)
+    (measure : String → Float × Float) (gap : Float) (pixels : List Float) (labels : List String) :
+    ∀ pl ∈ (compilePixelAxis side r st measure gap pixels labels).labels, pl.context = none := by
+  intro pl h
+  simp only [compilePixelAxis, compileAxis, List.zip_nil_right, List.filterMap_nil, List.find?_nil,
+    Option.bind_none] at h
+  split at h
+  · obtain ⟨l, -, rfl⟩ := List.mem_map.1 h
+    rfl
+  · simp at h
+
+/-- A label of the tick at index `i`, whose pixel is the finite `q`, is placed with the context paired with
+that tick, provided every tick with the same pixel and label has the same context. -/
+theorem compilePixelAxis_context (side : Side) (r : Rect) (st : AxisStyle)
+    (measure : String → Float × Float) (gap : Float) (pixels : List Float) (labels : List String)
+    (contexts : List (Option String)) {i : Nat} {p : Float} {t : String} {c : Option String} {q : Rat}
+    (hp : pixels[i]? = some p) (ht : labels[i]? = some t) (hc : contexts[i]? = some c)
+    (hq : Inkproof.Float.Float.toRat p = some q)
+    (hu : ∀ (j : Nat) p' t' c', pixels[j]? = some p' → labels[j]? = some t' → contexts[j]? = some c' →
+      Inkproof.Float.Float.toRat p' = some q → t' = t → c' = c) :
+    ∀ pl ∈ (compilePixelAxis side r st measure gap pixels labels contexts).labels,
+      pl.text = t → side.along pl.anchor = q → pl.context = c := by
+  intro pl h htext hq'
+  have hmem : ((q, t), c) ∈ (pixels.zip (labels.zip contexts)).filterMap fun (p, t, c) =>
+      (Inkproof.Float.Float.toRat p).map fun q => ((q, t), c) := by
+    refine List.mem_filterMap.2 ⟨(p, t, c), ?_, by simp [hq]⟩
+    rw [List.mem_iff_getElem?]
+    exact ⟨i, by simp [List.getElem?_zip_eq_some, hp, ht, hc]⟩
+  simp only [compilePixelAxis, compileAxis] at h
+  split at h
+  · obtain ⟨l, -, rfl⟩ := List.mem_map.1 h
+    simp only [Side.along_pt] at hq' htext
+    generalize hT : (pixels.zip (labels.zip contexts)).filterMap (fun (p, t, c) =>
+      (Inkproof.Float.Float.toRat p).map fun q => ((q, t), c)) = T at hmem ⊢
+    have hl : l = (q, t) := Prod.ext hq' htext
+    subst hl
+    obtain ⟨x, hx⟩ : ∃ x, List.find? (fun x => x.1 == (q, t)) T = some x := by
+      cases hf : List.find? (fun x => x.1 == (q, t)) T with
+      | some x => exact ⟨x, rfl⟩
+      | none => simpa using List.find?_eq_none.1 hf _ hmem
+    have hxT := List.mem_of_find?_eq_some hx
+    have hxe := List.find?_some hx
+    rw [← hT] at hxT
+    obtain ⟨⟨p', t', c'⟩, hz, hz'⟩ := List.mem_filterMap.1 hxT
+    obtain ⟨q', hq2, rfl⟩ := Option.map_eq_some_iff.1 hz'
+    simp only [beq_iff_eq, Prod.mk.injEq] at hxe
+    obtain ⟨rfl, rfl⟩ := hxe
+    obtain ⟨j, hj⟩ := List.mem_iff_getElem?.1 hz
+    simp only [List.getElem?_zip_eq_some] at hj
+    obtain ⟨hj1, hj2, hj3⟩ := hj
+    simp only [hx]
+    exact (hu j p' t' c' hj1 hj2 hj3 hq2 rfl).symm ▸ rfl
+  · simp at h
+
 /-- `compilePixelAxis` with minor gridlines at the given pixel positions. A position that is not a
 finite float is not drawn. -/
 def compilePixelAxisMinor (side : Side) (r : Rect) (st : AxisStyle) (measure : String → Float × Float)
-    (gap : Float) (pixels : List Float) (labels : List String) (minor : MinorGrid Float) : AxisDrawing :=
-  (compilePixelAxis side r st measure gap pixels labels).withMinor
+    (gap : Float) (pixels : List Float) (labels : List String) (minor : MinorGrid Float)
+    (contexts : List (Option String) := []) : AxisDrawing :=
+  (compilePixelAxis side r st measure gap pixels labels contexts).withMinor
     (minorGridlines side r id st ⟨minor.paint, minor.halfWidth, minor.positions.filterMap Inkproof.Float.Float.toRat⟩
       (pixels.filterMap Inkproof.Float.Float.toRat))
 
 /-- The labels are those of the axis without minor gridlines. -/
 theorem compilePixelAxisMinor_labels (side : Side) (r : Rect) (st : AxisStyle)
     (measure : String → Float × Float) (gap : Float) (pixels : List Float) (labels : List String)
-    (minor : MinorGrid Float) :
-    (compilePixelAxisMinor side r st measure gap pixels labels minor).labels =
-      (compilePixelAxis side r st measure gap pixels labels).labels := rfl
+    (minor : MinorGrid Float) (contexts : List (Option String)) :
+    (compilePixelAxisMinor side r st measure gap pixels labels minor contexts).labels =
+      (compilePixelAxis side r st measure gap pixels labels contexts).labels := rfl
 
 /-- The display is the minor gridlines followed by the display of the axis without them. -/
 theorem compilePixelAxisMinor_display (side : Side) (r : Rect) (st : AxisStyle)
     (measure : String → Float × Float) (gap : Float) (pixels : List Float) (labels : List String)
-    (minor : MinorGrid Float) :
-    (compilePixelAxisMinor side r st measure gap pixels labels minor).display =
+    (minor : MinorGrid Float) (contexts : List (Option String)) :
+    (compilePixelAxisMinor side r st measure gap pixels labels minor contexts).display =
       (minorGridlines side r id st ⟨minor.paint, minor.halfWidth, minor.positions.filterMap Inkproof.Float.Float.toRat⟩
         (pixels.filterMap Inkproof.Float.Float.toRat)).toArray ++
-        (compilePixelAxis side r st measure gap pixels labels).display := rfl
+        (compilePixelAxis side r st measure gap pixels labels contexts).display := rfl
 
 /-- A position whose pixel is a finite `q` inside the plot, and which is not at a tick drawn with a main
 gridline, has a minor gridline spanning the plot at `q`. -/
 theorem compilePixelAxisMinor_line (side : Side) (r : Rect) (st : AxisStyle)
     (measure : String → Float × Float) (gap : Float) (pixels : List Float) (labels : List String)
-    (minor : MinorGrid Float) {p : Float} {q : Rat} (hp : p ∈ minor.positions)
+    (minor : MinorGrid Float) (contexts : List (Option String)) {p : Float} {q : Rat} (hp : p ∈ minor.positions)
     (hq : Inkproof.Float.Float.toRat p = some q)
     (hlo : (if side.horizontal then r.x0 else r.y0) ≤ q)
     (hhi : q ≤ (if side.horizontal then r.x1 else r.y1))
     (ht : st.grid.isSome = true → q ∉ pixels.filterMap Inkproof.Float.Float.toRat) :
     segment minor.paint minor.halfWidth (side.pt q (side.edge r)) (side.pt q (side.far r)) ∈
-      (compilePixelAxisMinor side r st measure gap pixels labels minor).display := by
+      (compilePixelAxisMinor side r st measure gap pixels labels minor contexts).display := by
   have h := minorGridlines_mem side r id st
     ⟨minor.paint, minor.halfWidth, minor.positions.filterMap Inkproof.Float.Float.toRat⟩
     (pixels.filterMap Inkproof.Float.Float.toRat) (x := q) (List.mem_filterMap.2 ⟨p, hp, hq⟩) hlo hhi
@@ -500,7 +566,7 @@ theorem compileLinearAxisMinor_line (side : Side) (r : Rect) (s : Inkproof.Scale
     (ht : st.grid.isSome = true → q ∉ ((Inkproof.Axis.linearScaleTicks s spec.target).map s.map).filterMap Inkproof.Float.Float.toRat) :
     segment minor.paint minor.halfWidth (side.pt q (side.edge r)) (side.pt q (side.far r)) ∈
       (compileLinearAxisMinor side r s spec measure st minor).display :=
-  compilePixelAxisMinor_line _ _ _ _ _ _ _ _ (List.mem_map.2 ⟨p, hp, rfl⟩) hq hlo hhi ht
+  compilePixelAxisMinor_line _ _ _ _ _ _ _ _ _ (List.mem_map.2 ⟨p, hp, rfl⟩) hq hlo hhi ht
 
 /-- An axis for a logarithmic scale: ticks where `logScaleTicks` puts them, at the pixel the scale
 maps each to. -/
@@ -527,7 +593,7 @@ theorem compileLogAxisMinor_line (side : Side) (r : Rect) (s : Inkproof.Scale.Lo
     (ht : st.grid.isSome = true → q ∉ ((Inkproof.Axis.logScaleTicks s spec.target).map (s.map Float.log)).filterMap Inkproof.Float.Float.toRat) :
     segment minor.paint minor.halfWidth (side.pt q (side.edge r)) (side.pt q (side.far r)) ∈
       (compileLogAxisMinor side r s spec measure st minor).display :=
-  compilePixelAxisMinor_line _ _ _ _ _ _ _ _ (List.mem_map.2 ⟨p, hp, rfl⟩) hq hlo hhi ht
+  compilePixelAxisMinor_line _ _ _ _ _ _ _ _ _ (List.mem_map.2 ⟨p, hp, rfl⟩) hq hlo hhi ht
 
 /-- The labels and display of a linear axis with minor gridlines are those of the plain axis, with the
 minor gridlines beneath. -/
@@ -551,7 +617,7 @@ theorem compileLinearAxis_tick (side : Side) (r : Rect) (s : Inkproof.Scale.Line
     ∃ c ∈ (compileLinearAxis side r s spec measure st).display, ∃ a b,
       c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
       side.along a = q ∧ side.along b = q :=
-  compilePixelAxis_tick _ _ _ _ _ _ _ hs (List.mem_map.2 ⟨t, ht, rfl⟩) hq
+  compilePixelAxis_tick _ _ _ _ _ _ _ _ hs (List.mem_map.2 ⟨t, ht, rfl⟩) hq
 
 /-- Every tick of a log scale whose pixel is finite has a tick mark at the scale's own projection
 of it. -/
@@ -562,7 +628,7 @@ theorem compileLogAxis_tick (side : Side) (r : Rect) (s : Inkproof.Scale.Log Flo
     ∃ c ∈ (compileLogAxis side r s spec measure st).display, ∃ a b,
       c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
       side.along a = q ∧ side.along b = q :=
-  compilePixelAxis_tick _ _ _ _ _ _ _ hs (List.mem_map.2 ⟨t, ht, rfl⟩) hq
+  compilePixelAxis_tick _ _ _ _ _ _ _ _ hs (List.mem_map.2 ⟨t, ht, rfl⟩) hq
 
 /-- An axis for a linear scale of seconds since 1970-01-01T00:00:00 UTC: ticks at the clock intervals
 `durationScaleTicks` chooses, labelled in UTC with `months` as the month names. `spec.locale` is not
@@ -572,7 +638,7 @@ def compileTimeAxis (side : Side) (r : Rect) (s : Inkproof.Scale.Linear Float) (
   let ts := Inkproof.Axis.durationScaleTicks s spec.target
   let step := Inkproof.Axis.durationStep (s.domainEnd - s.domainStart).abs spec.target
   compilePixelAxis side r st measure spec.labelGap (ts.map s.map)
-    (Inkproof.Axis.timeTickLabels months step ts)
+    (Inkproof.Axis.timeTickLabels months step ts) (Inkproof.Axis.timeTickContextsAt (fun _ => 0) months step ts)
 
 /-- Every tick of a time scale whose pixel is finite has a tick mark at the scale's own projection
 of it. -/
@@ -583,7 +649,33 @@ theorem compileTimeAxis_tick (side : Side) (r : Rect) (s : Inkproof.Scale.Linear
     ∃ c ∈ (compileTimeAxis side r s spec months measure st).display, ∃ a b,
       c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
       side.along a = q ∧ side.along b = q :=
-  compilePixelAxis_tick _ _ _ _ _ _ _ hs (List.mem_map.2 ⟨t, ht, rfl⟩) hq
+  compilePixelAxis_tick _ _ _ _ _ _ _ _ hs (List.mem_map.2 ⟨t, ht, rfl⟩) hq
+
+/-- The label of the tick at index `i` of a time scale, when its pixel is the finite `q`, is placed with the
+context `timeTickContextsAt` gives that tick, provided every tick with the same pixel and label has the
+same context. -/
+theorem compileTimeAxis_context (side : Side) (r : Rect) (s : Inkproof.Scale.Linear Float)
+    (spec : TickSpec) (months : List String) (measure : String → Float × Float) (st : AxisStyle)
+    {i : Nat} {t : Float} {l : String} {c : Option String} {q : Rat}
+    (ht : (Inkproof.Axis.durationScaleTicks s spec.target)[i]? = some t)
+    (hl : (Inkproof.Axis.timeTickLabels months
+      (Inkproof.Axis.durationStep (s.domainEnd - s.domainStart).abs spec.target)
+      (Inkproof.Axis.durationScaleTicks s spec.target))[i]? = some l)
+    (hc : (Inkproof.Axis.timeTickContextsAt (fun _ => 0) months
+      (Inkproof.Axis.durationStep (s.domainEnd - s.domainStart).abs spec.target)
+      (Inkproof.Axis.durationScaleTicks s spec.target))[i]? = some c)
+    (hq : Inkproof.Float.Float.toRat (s.map t) = some q)
+    (hu : ∀ (j : Nat) p' l' c', ((Inkproof.Axis.durationScaleTicks s spec.target).map s.map)[j]? = some p' →
+      (Inkproof.Axis.timeTickLabels months
+        (Inkproof.Axis.durationStep (s.domainEnd - s.domainStart).abs spec.target)
+        (Inkproof.Axis.durationScaleTicks s spec.target))[j]? = some l' →
+      (Inkproof.Axis.timeTickContextsAt (fun _ => 0) months
+        (Inkproof.Axis.durationStep (s.domainEnd - s.domainStart).abs spec.target)
+        (Inkproof.Axis.durationScaleTicks s spec.target))[j]? = some c' →
+      Inkproof.Float.Float.toRat p' = some q → l' = l → c' = c) :
+    ∀ pl ∈ (compileTimeAxis side r s spec months measure st).labels,
+      pl.text = l → side.along pl.anchor = q → pl.context = c :=
+  compilePixelAxis_context side r st measure spec.labelGap _ _ _ (by simp [ht]) hl hc hq hu
 
 /-- `compileTimeAxis` with minor gridlines at the given times. -/
 def compileTimeAxisMinor (side : Side) (r : Rect) (s : Inkproof.Scale.Linear Float) (spec : TickSpec)
@@ -593,6 +685,7 @@ def compileTimeAxisMinor (side : Side) (r : Rect) (s : Inkproof.Scale.Linear Flo
   let step := Inkproof.Axis.durationStep (s.domainEnd - s.domainStart).abs spec.target
   compilePixelAxisMinor side r st measure spec.labelGap (ts.map s.map)
     (Inkproof.Axis.timeTickLabels months step ts) ⟨minor.paint, minor.halfWidth, minor.positions.map s.map⟩
+    (Inkproof.Axis.timeTickContextsAt (fun _ => 0) months step ts)
 
 /-- A position of the data whose pixel is a finite `q` inside the plot, and which is not at a tick drawn
 with a main gridline, has a minor gridline spanning the plot at `q`. -/
@@ -604,7 +697,7 @@ theorem compileTimeAxisMinor_line (side : Side) (r : Rect) (s : Inkproof.Scale.L
     (ht : st.grid.isSome = true → q ∉ ((Inkproof.Axis.durationScaleTicks s spec.target).map s.map).filterMap Inkproof.Float.Float.toRat) :
     segment minor.paint minor.halfWidth (side.pt q (side.edge r)) (side.pt q (side.far r)) ∈
       (compileTimeAxisMinor side r s spec months measure st minor).display :=
-  compilePixelAxisMinor_line _ _ _ _ _ _ _ _ (List.mem_map.2 ⟨p, hp, rfl⟩) hq hlo hhi ht
+  compilePixelAxisMinor_line _ _ _ _ _ _ _ _ _ (List.mem_map.2 ⟨p, hp, rfl⟩) hq hlo hhi ht
 
 /-- The pixel at the centre of band `i` of a categorical scale. -/
 def bandCentrePixel {κ : Type u} (s : Inkproof.Scale.Categorical κ Float) (i : Nat) : Float :=
@@ -637,6 +730,6 @@ theorem compileCategoricalAxis_tick {κ : Type u} (side : Side) (r : Rect)
     ∃ c ∈ (compileCategoricalAxis side r s name target labelGap measure st).display, ∃ a b,
       c.shape = .strip st.tickHalfWidth [.val a, .val b] ∧
       side.along a = q ∧ side.along b = q :=
-  compilePixelAxis_tick _ _ _ _ _ _ _ hs (List.mem_map.2 ⟨i, hi, rfl⟩) hq
+  compilePixelAxis_tick _ _ _ _ _ _ _ _ hs (List.mem_map.2 ⟨i, hi, rfl⟩) hq
 
 end Inkproof.Scene
