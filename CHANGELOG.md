@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.30.0
+
+- `PlacedLabel` gains an optional `context` line, filled for time axes from inkproof-axis v0.14.0's `timeTickContextsAt`; the `compileAxis` family takes optional context parameters.
+
 ## v0.29.1
 
 - README: the require example names no release version.
