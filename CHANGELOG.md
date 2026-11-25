@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.31.0
+
+- `RingStyle.outline` is a `Shading`, so a ring can be outlined with a gradient; a `Color` still works.
+
 ## v0.30.0
 
 - `PlacedLabel` gains an optional `context` line, filled for time axes from inkproof-axis v0.14.0's `timeTickContextsAt`; the `compileAxis` family takes optional context parameters.

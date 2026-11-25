@@ -435,10 +435,11 @@ def compileIsolated {α : Type u} {β : Type v} [LE α] (st : ScatterStyle) (pro
     | [p] => some ⟨st.paint.layer, st.paint.color, .marker st.shape p st.radius⟩
     | _ => none
 
-/-- A hollow disc marker: `outline` out to `radius`, with `fill` over it out to `radius - stroke`. -/
+/-- A hollow disc marker: `outline` out to `radius`, with `fill` over it out to `radius - stroke`.
+The outline may be a gradient, evaluated at each pixel it covers. -/
 structure RingStyle where
   layer : Nat := 0
-  outline : Color := Color.black
+  outline : Shading := Color.black
   fill : Color := ⟨255, 255, 255, 255⟩
   radius : Rat := 4
   stroke : Rat := 2
@@ -674,6 +675,13 @@ theorem compileRing_extent (st : RingStyle) (center : Pt) (h0 : 0 ≤ st.stroke)
       exact Rat.le_trans h this
   · intro h
     exact ⟨_, Or.inl rfl, h⟩
+
+/-- The ring's outline disc gives each pixel it covers the outline shading's colour there. -/
+theorem compileRing_outline_colorAt (st : RingStyle) (center : Pt) (px : Pixel) :
+    ∃ c ∈ compileRing st center, c.shape = .marker .circle center st.radius ∧
+      c.colorAt px = st.outline.at px :=
+  ⟨⟨st.layer, st.outline, .marker .circle center st.radius⟩,
+    by simp [compileRing, Array.mem_def], rfl, rfl⟩
 
 omit [LE α] in
 theorem mem_compileHeatmap {γ : Type} (layer : Nat) (colorOf : γ → Color) (proj : Projection α β)

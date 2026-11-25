@@ -9,7 +9,7 @@ The display list for Inkproof charts, the compilers that produce it, and a refer
 - Draw a line, area or envelope with gaps where data is missing, so no stroke bridges an absent value: `Item`, `runsOf`, `Item.ofRuns`, `compileEnvelope`.
 - Draw an envelope straight from a pyramid's per-column `Minimum` and `Maximum`, an empty column left as a gap: `compileEnvelopeOfExtents`, `extentColumns`.
 - Walk a strip's pieces and joins in order, or split it into its runs at its gaps: `Item.fold`, `Item.runs`, `Item.chain`.
-- Mark the samples a line cannot show, and draw a hollow marker: `compileIsolated`, `compileRing`.
+- Mark the samples a line cannot show, and draw a hollow marker, outlined in a colour or a gradient: `compileIsolated`, `compileRing`.
 - Style bars, lines and scatter points: `BarStyle`, `LineStyle`, `ScatterStyle`, `RingStyle`, `SeriesStyle`, with `Dash` and `MarkerShape` for dashes and markers.
 - Give the data a chart compiler takes: `Pt` for line and scatter points, `Cell` for heatmap cells, `Column` for envelope columns.
 - Draw a line dashed or dotted with a stated pattern along its length, each dash within the solid line and no dash across a gap: `LineStyle.dash`, `DashPattern`, `Dash.pattern`, `dashRun`.

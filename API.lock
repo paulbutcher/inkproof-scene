@@ -281,8 +281,8 @@ theorem Inkproof.Scene.Region.thicken_zero : ∀ (a : Inkproof.Scene.Region) (p 
 structure Inkproof.Scene.RingStyle : Type
 field Inkproof.Scene.RingStyle.fill : Inkproof.Scene.RingStyle → Inkproof.Scene.Color
 field Inkproof.Scene.RingStyle.layer : Inkproof.Scene.RingStyle → Nat
-constructor Inkproof.Scene.RingStyle.mk : Nat → Inkproof.Scene.Color → Inkproof.Scene.Color → Rat → Rat → Inkproof.Scene.RingStyle
-field Inkproof.Scene.RingStyle.outline : Inkproof.Scene.RingStyle → Inkproof.Scene.Color
+constructor Inkproof.Scene.RingStyle.mk : Nat → Inkproof.Scene.Shading → Inkproof.Scene.Color → Rat → Rat → Inkproof.Scene.RingStyle
+field Inkproof.Scene.RingStyle.outline : Inkproof.Scene.RingStyle → Inkproof.Scene.Shading
 field Inkproof.Scene.RingStyle.radius : Inkproof.Scene.RingStyle → Rat
 field Inkproof.Scene.RingStyle.stroke : Inkproof.Scene.RingStyle → Rat
 structure Inkproof.Scene.ScatterStyle : Type
@@ -498,6 +498,7 @@ theorem Inkproof.Scene.compilePixelAxis_no_context : ∀ (side : Inkproof.Scene.
 theorem Inkproof.Scene.compilePixelAxis_tick : ∀ (side : Inkproof.Scene.Side) (r : Inkproof.Scene.Rect) (st : Inkproof.Scene.AxisStyle) (measure : String → Float × Float) (gap : Float) (pixels : List Float) (labels : List String) (contexts : List (Option String)), st.showTicks = Bool.true → ∀ {p : Float} {q : Rat}, p ∈ pixels → Inkproof.Float.Float.toRat p = Option.some q → ∃ c, c ∈ (Inkproof.Scene.compilePixelAxis side r st measure gap pixels labels contexts).display ∧ ∃ a b, c.shape = Inkproof.Scene.Shape.strip st.tickHalfWidth [Inkproof.Scene.Item.val a, Inkproof.Scene.Item.val b] ∧ side.along a = q ∧ side.along b = q
 def Inkproof.Scene.compileRing : Inkproof.Scene.RingStyle → Inkproof.Scene.Pt → Inkproof.Scene.DisplayList
 theorem Inkproof.Scene.compileRing_extent : ∀ (st : Inkproof.Scene.RingStyle) (center : Inkproof.Scene.Pt), 0 ≤ st.stroke → st.stroke ≤ st.radius → ∀ (p : Inkproof.Scene.Pt), (∃ c, c ∈ Inkproof.Scene.compileRing st center ∧ c.shape.region p) ↔ Inkproof.Scene.Region.disc center st.radius p
+theorem Inkproof.Scene.compileRing_outline_colorAt : ∀ (st : Inkproof.Scene.RingStyle) (center : Inkproof.Scene.Pt) (px : Inkproof.Scene.Pixel), ∃ c, c ∈ Inkproof.Scene.compileRing st center ∧ c.shape = Inkproof.Scene.Shape.marker Inkproof.Scene.MarkerShape.circle center st.radius ∧ c.colorAt px = st.outline.at px
 def Inkproof.Scene.compileScatter : {α : Type u} → {β : Type v} → [inst : LE α] → Inkproof.Scene.ScatterStyle → Inkproof.Scene.Projection α β → Inkproof.Core.Series α β → Inkproof.Scene.DisplayList
 def Inkproof.Scene.compileScatterBy : {α : Type u} → {β : Type v} → [inst : LE α] → Inkproof.Scene.ScatterStyle → (β → Rat) → Inkproof.Scene.Projection α β → Inkproof.Core.Series α β → Inkproof.Scene.DisplayList
 theorem Inkproof.Scene.compileScatter_covers : ∀ {α : Type u} {β : Type v} [inst : LE α] (st : Inkproof.Scene.ScatterStyle), 0 ≤ st.radius → ∀ (proj : Inkproof.Scene.Projection α β) (s : Inkproof.Core.Series α β) {x : α} {y : β}, (x, Option.some y) ∈ s.points → ∀ {px : Inkproof.Scene.Pixel}, px.Contains { x := proj.x x, y := proj.y y } → (Inkproof.Scene.compileScatter st proj s).Covers px
