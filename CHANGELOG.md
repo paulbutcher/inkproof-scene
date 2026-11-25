@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.32.0
+
+- `Theme` gains axis, grid, border, legend and tooltip colours, checked for contrast, and `Theme.applyAxis` sets an `AxisStyle`'s line, tick, grid and label colours from a theme.
+
 ## v0.31.0
 
 - `RingStyle.outline` is a `Shading`, so a ring can be outlined with a gradient; a `Color` still works.

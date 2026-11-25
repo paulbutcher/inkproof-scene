@@ -392,12 +392,31 @@ constructor Inkproof.Scene.TextStyle.mk : String → Rat → Inkproof.Scene.Colo
 field Inkproof.Scene.TextStyle.size : Inkproof.Scene.TextStyle → Rat
 inductive Inkproof.Scene.Theme : Type
 def Inkproof.Scene.Theme.Distinguishable : Inkproof.Scene.Theme → Prop
+def Inkproof.Scene.Theme.applyAxis : Inkproof.Scene.Theme → Inkproof.Scene.AxisStyle → Inkproof.Scene.AxisStyle
+theorem Inkproof.Scene.Theme.applyAxis_colors : ∀ (t : Inkproof.Scene.Theme) (st : Inkproof.Scene.AxisStyle), (t.applyAxis st).line.color = Inkproof.Scene.Shading.flat t.axis ∧ (t.applyAxis st).tick.color = Inkproof.Scene.Shading.flat t.axis ∧ (t.applyAxis st).labelText.color = t.text
+theorem Inkproof.Scene.Theme.applyAxis_geometry : ∀ (t : Inkproof.Scene.Theme) (st : Inkproof.Scene.AxisStyle), (t.applyAxis st).line.layer = st.line.layer ∧ (t.applyAxis st).tick.layer = st.tick.layer ∧ (t.applyAxis st).lineHalfWidth = st.lineHalfWidth ∧ (t.applyAxis st).tickHalfWidth = st.tickHalfWidth ∧ (t.applyAxis st).tickLength = st.tickLength ∧ (t.applyAxis st).labelGap = st.labelGap ∧ (t.applyAxis st).showLine = st.showLine ∧ (t.applyAxis st).showTicks = st.showTicks ∧ (t.applyAxis st).showLabels = st.showLabels ∧ (t.applyAxis st).labelText.family = st.labelText.family ∧ (t.applyAxis st).labelText.size = st.labelText.size
+theorem Inkproof.Scene.Theme.applyAxis_grid : ∀ (t : Inkproof.Scene.Theme) (st : Inkproof.Scene.AxisStyle), (t.applyAxis st).grid = Option.map (fun x => match x with | (p, w) => ({ layer := p.layer, color := Inkproof.Scene.Shading.flat t.grid }, w)) st.grid
+def Inkproof.Scene.Theme.axis : Inkproof.Scene.Theme → Inkproof.Scene.Color
+theorem Inkproof.Scene.Theme.axis_dark : Inkproof.Scene.Theme.dark.axis = { r := 158, g := 158, b := 158, a := 255 }
+theorem Inkproof.Scene.Theme.axis_light : Inkproof.Scene.Theme.light.axis = { r := 117, g := 117, b := 117, a := 255 }
 def Inkproof.Scene.Theme.background : Inkproof.Scene.Theme → Inkproof.Scene.Color
 theorem Inkproof.Scene.Theme.background_dark : Inkproof.Scene.Theme.dark.background = { r := 18, g := 18, b := 18, a := 255 }
 theorem Inkproof.Scene.Theme.background_light : Inkproof.Scene.Theme.light.background = { r := 255, g := 255, b := 255, a := 255 }
+def Inkproof.Scene.Theme.border : Inkproof.Scene.Theme → Inkproof.Scene.Color
+theorem Inkproof.Scene.Theme.border_dark : Inkproof.Scene.Theme.dark.border = { r := 158, g := 158, b := 158, a := 255 }
+theorem Inkproof.Scene.Theme.border_light : Inkproof.Scene.Theme.light.border = { r := 117, g := 117, b := 117, a := 255 }
 constructor Inkproof.Scene.Theme.dark : Inkproof.Scene.Theme
 theorem Inkproof.Scene.Theme.distinguishable : ∀ (t : Inkproof.Scene.Theme), t.Distinguishable
+def Inkproof.Scene.Theme.grid : Inkproof.Scene.Theme → Inkproof.Scene.Color
+theorem Inkproof.Scene.Theme.grid_dark : Inkproof.Scene.Theme.dark.grid = { r := 117, g := 117, b := 117, a := 255 }
+theorem Inkproof.Scene.Theme.grid_light : Inkproof.Scene.Theme.light.grid = { r := 133, g := 133, b := 133, a := 255 }
 instance Inkproof.Scene.Theme.instDecidableDistinguishable : (t : Inkproof.Scene.Theme) → Decidable t.Distinguishable
+def Inkproof.Scene.Theme.legendFill : Inkproof.Scene.Theme → Inkproof.Scene.Color
+theorem Inkproof.Scene.Theme.legendFill_dark : Inkproof.Scene.Theme.dark.legendFill = { r := 30, g := 30, b := 30, a := 255 }
+theorem Inkproof.Scene.Theme.legendFill_light : Inkproof.Scene.Theme.light.legendFill = { r := 255, g := 255, b := 255, a := 255 }
+def Inkproof.Scene.Theme.legendText : Inkproof.Scene.Theme → Inkproof.Scene.Color
+theorem Inkproof.Scene.Theme.legendText_dark : Inkproof.Scene.Theme.dark.legendText = { r := 238, g := 238, b := 238, a := 255 }
+theorem Inkproof.Scene.Theme.legendText_light : Inkproof.Scene.Theme.light.legendText = { r := 33, g := 33, b := 33, a := 255 }
 constructor Inkproof.Scene.Theme.light : Inkproof.Scene.Theme
 def Inkproof.Scene.Theme.meetsContrast : Inkproof.Scene.Theme → Bool
 def Inkproof.Scene.Theme.minSeriesContrast : Inkproof.Scene.Theme → Float
@@ -411,6 +430,12 @@ theorem Inkproof.Scene.Theme.series_size : ∀ (t : Inkproof.Scene.Theme), t.ser
 def Inkproof.Scene.Theme.text : Inkproof.Scene.Theme → Inkproof.Scene.Color
 theorem Inkproof.Scene.Theme.text_dark : Inkproof.Scene.Theme.dark.text = { r := 238, g := 238, b := 238, a := 255 }
 theorem Inkproof.Scene.Theme.text_light : Inkproof.Scene.Theme.light.text = { r := 33, g := 33, b := 33, a := 255 }
+def Inkproof.Scene.Theme.tooltipFill : Inkproof.Scene.Theme → Inkproof.Scene.Color
+theorem Inkproof.Scene.Theme.tooltipFill_dark : Inkproof.Scene.Theme.dark.tooltipFill = { r := 238, g := 238, b := 238, a := 255 }
+theorem Inkproof.Scene.Theme.tooltipFill_light : Inkproof.Scene.Theme.light.tooltipFill = { r := 33, g := 33, b := 33, a := 255 }
+def Inkproof.Scene.Theme.tooltipText : Inkproof.Scene.Theme → Inkproof.Scene.Color
+theorem Inkproof.Scene.Theme.tooltipText_dark : Inkproof.Scene.Theme.dark.tooltipText = { r := 18, g := 18, b := 18, a := 255 }
+theorem Inkproof.Scene.Theme.tooltipText_light : Inkproof.Scene.Theme.light.tooltipText = { r := 255, g := 255, b := 255, a := 255 }
 structure Inkproof.Scene.TickSpec : Type
 field Inkproof.Scene.TickSpec.labelGap : Inkproof.Scene.TickSpec → Float
 field Inkproof.Scene.TickSpec.locale : Inkproof.Scene.TickSpec → Inkproof.Axis.Locale

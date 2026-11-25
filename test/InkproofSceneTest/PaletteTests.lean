@@ -14,6 +14,11 @@ def paletteTests : List TestCase :=
     let name := repr t |>.pretty
     [ .mk s!"{name}: text and series colours meet WCAG contrast on the background" <|
         check t.meetsContrast s!"minimum series contrast {t.minSeriesContrast}",
+      .mk s!"{name}: applyAxis recolours the axis and grid and keeps a style without a grid gridless" <|
+        let st : AxisStyle := { grid := some ({ layer := 3 }, 1 / 2) }
+        let a := t.applyAxis st
+        check (a.line.color == .flat t.axis && a.grid.map (fun (p, w) => (p.color, p.layer, w)) ==
+          some (.flat t.grid, 3, 1 / 2) && (t.applyAxis {}).grid.isNone) "axis style wrong",
       .mk s!"{name}: contrast is symmetric and at least 1" <|
         check (t.series.all fun s =>
           s.color.contrast t.background == t.background.contrast s.color &&

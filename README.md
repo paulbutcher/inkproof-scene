@@ -30,6 +30,7 @@ The display list for Inkproof charts, the compilers that produce it, and a refer
 - Set axis labels, axis titles and bar value labels in one text style, family, size and colour, each with a default: `TextStyle`, `AxisStyle.labelText`, `PlacedLabel.style`, `placeAxisTitle`, `barValueLabels`; every style structure (`AxisStyle`, `LineStyle`, `BarStyle`, `ScatterStyle`, `RingStyle`, `SeriesStyle`, `Paint`) has a default for each field.
 - Place an axis title beside an axis, centred along it and clear of the tick labels, turned for a vertical axis: `placeAxisTitle`.
 - Pick colours, dash styles and markers for series in light and dark themes with checked contrast: `Theme`, `Theme.series`, `Theme.seriesStyle`, `Color.contrast`.
+- Colour an axis, its gridlines, labels, and legend and tooltip boxes for a light or dark theme: `Theme.axis`, `Theme.grid`, `Theme.border`, `Theme.legendFill`, `Theme.tooltipFill`, `Theme.applyAxis`.
 - Make a colour from hue, saturation, lightness and alpha: `Color.ofHsl`.
 
 ## Requiring it

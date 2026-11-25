@@ -2,6 +2,7 @@
 Copyright (c) 2026 Paul Butcher. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
+import Inkproof.Scene.Axis
 import Inkproof.Scene.Dash
 import Inkproof.Scene.DisplayList
 import Inkproof.Float.RatLemmas
@@ -211,9 +212,80 @@ theorem text_light : Theme.light.text = ⟨33, 33, 33, 255⟩ := rfl
 
 theorem text_dark : Theme.dark.text = ⟨238, 238, 238, 255⟩ := rfl
 
-/-- WCAG 1.4.11 asks 3:1 for graphical objects, 1.4.3 asks 4.5:1 for text. -/
+/-- The axis line and tick marks. -/
+def axis : Theme → Color
+  | .light => ⟨117, 117, 117, 255⟩
+  | .dark => ⟨158, 158, 158, 255⟩
+
+/-- Gridlines. -/
+def grid : Theme → Color
+  | .light => ⟨133, 133, 133, 255⟩
+  | .dark => ⟨117, 117, 117, 255⟩
+
+/-- The border of legend and tooltip boxes. -/
+def border : Theme → Color
+  | .light => ⟨117, 117, 117, 255⟩
+  | .dark => ⟨158, 158, 158, 255⟩
+
+/-- The fill of a legend. -/
+def legendFill : Theme → Color
+  | .light => ⟨255, 255, 255, 255⟩
+  | .dark => ⟨30, 30, 30, 255⟩
+
+/-- The text of a legend, over `legendFill`. -/
+def legendText : Theme → Color
+  | .light => ⟨33, 33, 33, 255⟩
+  | .dark => ⟨238, 238, 238, 255⟩
+
+/-- The fill of a tooltip, which stands out from the plot. -/
+def tooltipFill : Theme → Color
+  | .light => ⟨33, 33, 33, 255⟩
+  | .dark => ⟨238, 238, 238, 255⟩
+
+/-- The text of a tooltip, over `tooltipFill`. -/
+def tooltipText : Theme → Color
+  | .light => ⟨255, 255, 255, 255⟩
+  | .dark => ⟨18, 18, 18, 255⟩
+
+theorem axis_light : Theme.light.axis = ⟨117, 117, 117, 255⟩ := rfl
+
+theorem axis_dark : Theme.dark.axis = ⟨158, 158, 158, 255⟩ := rfl
+
+theorem grid_light : Theme.light.grid = ⟨133, 133, 133, 255⟩ := rfl
+
+theorem grid_dark : Theme.dark.grid = ⟨117, 117, 117, 255⟩ := rfl
+
+theorem border_light : Theme.light.border = ⟨117, 117, 117, 255⟩ := rfl
+
+theorem border_dark : Theme.dark.border = ⟨158, 158, 158, 255⟩ := rfl
+
+theorem legendFill_light : Theme.light.legendFill = ⟨255, 255, 255, 255⟩ := rfl
+
+theorem legendFill_dark : Theme.dark.legendFill = ⟨30, 30, 30, 255⟩ := rfl
+
+theorem legendText_light : Theme.light.legendText = ⟨33, 33, 33, 255⟩ := rfl
+
+theorem legendText_dark : Theme.dark.legendText = ⟨238, 238, 238, 255⟩ := rfl
+
+theorem tooltipFill_light : Theme.light.tooltipFill = ⟨33, 33, 33, 255⟩ := rfl
+
+theorem tooltipFill_dark : Theme.dark.tooltipFill = ⟨238, 238, 238, 255⟩ := rfl
+
+theorem tooltipText_light : Theme.light.tooltipText = ⟨255, 255, 255, 255⟩ := rfl
+
+theorem tooltipText_dark : Theme.dark.tooltipText = ⟨18, 18, 18, 255⟩ := rfl
+
+/-- WCAG 1.4.11 asks 3:1 for graphical objects, 1.4.3 asks 4.5:1 for text. Text is held to 4.5:1
+against what it is set on; the axis, ticks, gridlines, borders and series to 3:1 against the
+background. Float arithmetic is opaque to the prover, so no theorem states the result; the tests check it for
+both themes. -/
 def meetsContrast (t : Theme) : Bool :=
   t.text.contrast t.background ≥ 4.5 &&
+    t.legendText.contrast t.legendFill ≥ 4.5 &&
+    t.tooltipText.contrast t.tooltipFill ≥ 4.5 &&
+    t.axis.contrast t.background ≥ 3 &&
+    t.grid.contrast t.background ≥ 3 &&
+    t.border.contrast t.background ≥ 3 &&
     t.series.all fun s => s.color.contrast t.background ≥ 3
 
 /-- The least contrast of any series colour against the background of `t`. -/
@@ -229,6 +301,31 @@ instance (t : Theme) : Decidable t.Distinguishable := by unfold Distinguishable;
 
 theorem distinguishable (t : Theme) : t.Distinguishable := by
   cases t <;> decide
+
+/-- A style with the theme's colours for the axis line, tick marks, gridlines and labels; layers,
+widths, lengths and the label font are the style's own, and a style without a grid still has none. -/
+def applyAxis (t : Theme) (st : AxisStyle) : AxisStyle :=
+  { st with
+    line := { st.line with color := .flat t.axis }
+    tick := { st.tick with color := .flat t.axis }
+    grid := st.grid.map fun (p, w) => ({ p with color := .flat t.grid }, w)
+    labelText := { st.labelText with color := t.text } }
+
+theorem applyAxis_colors (t : Theme) (st : AxisStyle) :
+    (t.applyAxis st).line.color = .flat t.axis ∧ (t.applyAxis st).tick.color = .flat t.axis ∧
+      (t.applyAxis st).labelText.color = t.text := ⟨rfl, rfl, rfl⟩
+
+theorem applyAxis_grid (t : Theme) (st : AxisStyle) :
+    (t.applyAxis st).grid = st.grid.map fun (p, w) => ({ p with color := .flat t.grid }, w) := rfl
+
+/-- Everything but the colours is as it was. -/
+theorem applyAxis_geometry (t : Theme) (st : AxisStyle) :
+    (t.applyAxis st).line.layer = st.line.layer ∧ (t.applyAxis st).tick.layer = st.tick.layer ∧
+      (t.applyAxis st).lineHalfWidth = st.lineHalfWidth ∧ (t.applyAxis st).tickHalfWidth = st.tickHalfWidth ∧
+      (t.applyAxis st).tickLength = st.tickLength ∧ (t.applyAxis st).labelGap = st.labelGap ∧
+      (t.applyAxis st).showLine = st.showLine ∧ (t.applyAxis st).showTicks = st.showTicks ∧
+      (t.applyAxis st).showLabels = st.showLabels ∧ (t.applyAxis st).labelText.family = st.labelText.family ∧
+      (t.applyAxis st).labelText.size = st.labelText.size := ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 end Theme
 
