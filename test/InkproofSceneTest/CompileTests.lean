@@ -156,9 +156,25 @@ def stackedBarsByFraction : TestCase := .mk "stacked bars take a fraction of the
         | .rect b => check (b.x1 - b.x0 == 24) "bar is not 3 / 5 of the spacing"
         | _ => check false "not a rect"
 
+/-- The border's rectangles have the area of the outer rectangle less the hole, whichever way the
+border is placed and however wide it is. -/
+def outlineArea : TestCase := .mk "outline pieces tile the border" <|
+  forAll 200 (fun g => let (a, g) := g.below 40; let (b, g) := g.below 40; let (w, g) := g.below 12; let (k, g) := g.below 2; ((a, b, w, k), g)) fun (a, b, w, k) => do
+    let r : Rect := ⟨0, 0, (a : Rat), (b : Rat)⟩
+    let pl := if k == 0 then OutlinePlacement.inside else .centred
+    let wr : Rat := (w : Rat) / 2
+    let g : Rat := if k == 0 then 0 else wr / 2
+    let ow := (a : Rat) + 2 * g
+    let oh := (b : Rat) + 2 * g
+    let hole := max 0 (ow - 2 * wr) * max 0 (oh - 2 * wr)
+    let area := (r.outline wr pl).foldl (fun s q => s + (q.x1 - q.x0) * (q.y1 - q.y0)) 0
+    if wr ≤ 0 then check (area == 0) "a zero width draws something"
+    else if ow - 2 * wr > 0 ∧ oh - 2 * wr > 0 then check (area == ow * oh - hole) "wrong border area"
+    else check (area == ow * oh) "a border without a hole is not the outer rectangle"
+
 def tests : List TestCase :=
   [reductionKeepsWhatMatters, spikeSurvives, scatterOnePerSample, scatterByRadiusPerValue, dashesStayWithinPattern,
     dashesCoverEveryPeriod, millionPointsCompile, stackedBarsRest,
-    stackedBarsByFraction]
+    stackedBarsByFraction, outlineArea]
 
 end InkproofSceneTest.CompileTests

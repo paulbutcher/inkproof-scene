@@ -103,6 +103,8 @@ theorem Inkproof.Scene.DisplayList.clip_covers_of_inside : ∀ {r : Inkproof.Sce
 theorem Inkproof.Scene.DisplayList.clip_inside : ∀ {r : Inkproof.Scene.Rect} {dl : Inkproof.Scene.DisplayList} {px : Inkproof.Scene.Pixel}, (Inkproof.Scene.DisplayList.clip r dl).Covers px → ∃ p, r.Holds p ∧ px.Contains p
 theorem Inkproof.Scene.DisplayList.covers_append : ∀ {a b : Inkproof.Scene.DisplayList} {px : Inkproof.Scene.Pixel}, (a ++ b).Covers px ↔ a.Covers px ∨ b.Covers px
 theorem Inkproof.Scene.DisplayList.exists_covered : ∀ {dl : Inkproof.Scene.DisplayList} {g : Inkproof.Scene.Grid}, 0 < g.w → 0 < g.h → ∀ {c : Inkproof.Scene.Command}, c ∈ dl → ∀ {p : Inkproof.Scene.Pt}, c.shape.region p → g.Holds p → ∃ px, g.Has px ∧ dl.Covers px
+def Inkproof.Scene.DisplayList.outline : Inkproof.Scene.Rect → Rat → Inkproof.Scene.OutlinePlacement → Inkproof.Scene.Shading → Nat → Inkproof.Scene.DisplayList
+theorem Inkproof.Scene.DisplayList.outline_eq : ∀ (r : Inkproof.Scene.Rect) (w : Rat) (pl : Inkproof.Scene.OutlinePlacement) (color : Inkproof.Scene.Shading) (layer : Nat), Inkproof.Scene.DisplayList.outline r w pl color layer = (List.map (fun b => { layer := layer, color := color, shape := Inkproof.Scene.Shape.rect b }) (r.outline w pl)).toArray
 def Inkproof.Scene.DisplayList.paintOrder : Inkproof.Scene.DisplayList → List Inkproof.Scene.Command
 theorem Inkproof.Scene.DisplayList.paintOrder_filter : ∀ (dl : Inkproof.Scene.DisplayList) (q : Inkproof.Scene.Command → Bool), List.Pairwise (fun a b => a.layer ≤ b.layer) (List.filter q dl.toList) → List.filter q dl.paintOrder = List.filter q dl.toList
 theorem Inkproof.Scene.DisplayList.paintOrder_layer : ∀ (dl : Inkproof.Scene.DisplayList) (k : Nat), List.filter (fun c => c.layer == k) dl.paintOrder = List.filter (fun c => c.layer == k) dl.toList
@@ -194,6 +196,14 @@ field Inkproof.Scene.MinorGrid.halfWidth : {α : Type u} → Inkproof.Scene.Mino
 constructor Inkproof.Scene.MinorGrid.mk : {α : Type u} → Inkproof.Scene.Paint → Rat → List α → Inkproof.Scene.MinorGrid α
 field Inkproof.Scene.MinorGrid.paint : {α : Type u} → Inkproof.Scene.MinorGrid α → Inkproof.Scene.Paint
 field Inkproof.Scene.MinorGrid.positions : {α : Type u} → Inkproof.Scene.MinorGrid α → List α
+inductive Inkproof.Scene.OutlinePlacement : Type
+constructor Inkproof.Scene.OutlinePlacement.centred : Inkproof.Scene.OutlinePlacement
+constructor Inkproof.Scene.OutlinePlacement.inside : Inkproof.Scene.OutlinePlacement
+def Inkproof.Scene.OutlinePlacement.ofNat : Nat → Inkproof.Scene.OutlinePlacement
+theorem Inkproof.Scene.OutlinePlacement.ofNat_ctorIdx : ∀ (x : Inkproof.Scene.OutlinePlacement), Inkproof.Scene.OutlinePlacement.ofNat x.ctorIdx = x
+def Inkproof.Scene.OutlinePlacement.reach : Rat → Inkproof.Scene.OutlinePlacement → Rat
+theorem Inkproof.Scene.OutlinePlacement.reach_centred : ∀ (w : Rat), Inkproof.Scene.OutlinePlacement.reach w Inkproof.Scene.OutlinePlacement.centred = w / 2
+theorem Inkproof.Scene.OutlinePlacement.reach_inside : ∀ (w : Rat), Inkproof.Scene.OutlinePlacement.reach w Inkproof.Scene.OutlinePlacement.inside = 0
 structure Inkproof.Scene.Paint : Type
 field Inkproof.Scene.Paint.color : Inkproof.Scene.Paint → Inkproof.Scene.Shading
 field Inkproof.Scene.Paint.layer : Inkproof.Scene.Paint → Nat
@@ -248,6 +258,8 @@ theorem Inkproof.Scene.Rect.has_window : ∀ (b : Inkproof.Scene.Rect) (p : Inkp
 def Inkproof.Scene.Rect.meet : Inkproof.Scene.Rect → Inkproof.Scene.Rect → Option Inkproof.Scene.Rect
 theorem Inkproof.Scene.Rect.meet_holds : ∀ (a b : Inkproof.Scene.Rect) (p : Inkproof.Scene.Pt), (∃ r, a.meet b = Option.some r ∧ r.Holds p) ↔ a.Holds p ∧ b.Holds p
 constructor Inkproof.Scene.Rect.mk : Rat → Rat → Rat → Rat → Inkproof.Scene.Rect
+def Inkproof.Scene.Rect.outline : Inkproof.Scene.Rect → Rat → Inkproof.Scene.OutlinePlacement → List Inkproof.Scene.Rect
+theorem Inkproof.Scene.Rect.outline_holds : ∀ (r : Inkproof.Scene.Rect) (w : Rat) (pl : Inkproof.Scene.OutlinePlacement), 0 < w → ∀ (p : Inkproof.Scene.Pt), (∃ b, b ∈ r.outline w pl ∧ b.Holds p) ↔ (Min.min r.x0 r.x1 - Inkproof.Scene.OutlinePlacement.reach w pl ≤ p.x ∧ p.x ≤ Max.max r.x0 r.x1 + Inkproof.Scene.OutlinePlacement.reach w pl ∧ Min.min r.y0 r.y1 - Inkproof.Scene.OutlinePlacement.reach w pl ≤ p.y ∧ p.y ≤ Max.max r.y0 r.y1 + Inkproof.Scene.OutlinePlacement.reach w pl) ∧ ¬have g := Inkproof.Scene.OutlinePlacement.reach w pl; Min.min r.x0 r.x1 - g + w < p.x ∧ p.x < Max.max r.x0 r.x1 + g - w ∧ Min.min r.y0 r.y1 - g + w < p.y ∧ p.y < Max.max r.y0 r.y1 + g - w
 def Inkproof.Scene.Rect.scale : Rat → Inkproof.Scene.Rect → Inkproof.Scene.Rect
 theorem Inkproof.Scene.Rect.scale_eq : ∀ (k : Rat) (b : Inkproof.Scene.Rect), Inkproof.Scene.Rect.scale k b = { x0 := k * b.x0, y0 := k * b.y0, x1 := k * b.x1, y1 := k * b.y1 }
 def Inkproof.Scene.Rect.window : Inkproof.Scene.Rect → Inkproof.Scene.Window
@@ -595,6 +607,7 @@ def Inkproof.Scene.instDecidableEqItem.decEq : {α : Type} → [DecidableEq α] 
 instance Inkproof.Scene.instDecidableEqJoin : DecidableEq Inkproof.Scene.Join
 def Inkproof.Scene.instDecidableEqJoin.decEq : (x x_1 : Inkproof.Scene.Join) → Decidable (x = x_1)
 instance Inkproof.Scene.instDecidableEqMarkerShape : DecidableEq Inkproof.Scene.MarkerShape
+instance Inkproof.Scene.instDecidableEqOutlinePlacement : DecidableEq Inkproof.Scene.OutlinePlacement
 instance Inkproof.Scene.instDecidableEqPixel : DecidableEq Inkproof.Scene.Pixel
 def Inkproof.Scene.instDecidableEqPixel.decEq : (x x_1 : Inkproof.Scene.Pixel) → Decidable (x = x_1)
 instance Inkproof.Scene.instDecidableEqPt : DecidableEq Inkproof.Scene.Pt
@@ -635,6 +648,8 @@ instance Inkproof.Scene.instReprJoin : Repr Inkproof.Scene.Join
 def Inkproof.Scene.instReprJoin.repr : Inkproof.Scene.Join → Nat → Std.Format
 instance Inkproof.Scene.instReprMarkerShape : Repr Inkproof.Scene.MarkerShape
 def Inkproof.Scene.instReprMarkerShape.repr : Inkproof.Scene.MarkerShape → Nat → Std.Format
+instance Inkproof.Scene.instReprOutlinePlacement : Repr Inkproof.Scene.OutlinePlacement
+def Inkproof.Scene.instReprOutlinePlacement.repr : Inkproof.Scene.OutlinePlacement → Nat → Std.Format
 instance Inkproof.Scene.instReprPixel : Repr Inkproof.Scene.Pixel
 def Inkproof.Scene.instReprPixel.repr : Inkproof.Scene.Pixel → Nat → Std.Format
 instance Inkproof.Scene.instReprPt : Repr Inkproof.Scene.Pt

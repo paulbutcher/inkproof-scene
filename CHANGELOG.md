@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.33.0
+
+- `DisplayList.outline` and `Rect.outline` draw a rectangle's border of a given width, inside its edge or centred on it, as rectangles that do not overlap.
+
 ## v0.32.0
 
 - `Theme` gains axis, grid, border, legend and tooltip colours, checked for contrast, and `Theme.applyAxis` sets an `AxisStyle`'s line, tick, grid and label colours from a theme.
