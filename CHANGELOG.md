@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.34.0
+
+- `Color.scaleAlpha` multiplies a colour's alpha by a factor, leaving its colour channels unchanged.
+
 ## v0.33.0
 
 - `DisplayList.outline` and `Rect.outline` draw a rectangle's border of a given width, inside its edge or centred on it, as rectangles that do not overlap.

@@ -37,6 +37,19 @@ def lerpChannel (a b : UInt8) (w : Rat) : UInt8 :=
 def Color.lerp (a b : Color) (w : Rat) : Color :=
   ⟨lerpChannel a.r b.r w, lerpChannel a.g b.g w, lerpChannel a.b b.b w, lerpChannel a.a b.a w⟩
 
+/-- `c` with its alpha multiplied by `f`, clamped to the range 0 to 1 and rounded half up; the colour channels are unchanged. -/
+def Color.scaleAlpha (c : Color) (f : Rat) : Color :=
+  { c with a := lerpChannel 0 c.a (max 0 (min 1 f)) }
+
+theorem Color.scaleAlpha_rgb (c : Color) (f : Rat) :
+    (c.scaleAlpha f).r = c.r ∧ (c.scaleAlpha f).g = c.g ∧ (c.scaleAlpha f).b = c.b := by
+  simp [Color.scaleAlpha]
+
+theorem Color.scaleAlpha_a (c : Color) (f : Rat) :
+    (c.scaleAlpha f).a
+      = UInt8.ofNat (((c.a.toNat : Rat) * max 0 (min 1 f) + 1 / 2).floor.toNat) := by
+  simp [Color.scaleAlpha, lerpChannel, Rat.zero_add, Rat.sub_eq_add_neg, Rat.neg_zero, Rat.add_zero]
+
 /-- The channel of `s` painted over `d`, given the alpha `sa` of `s`, the alpha `da` of `d` and `k`,
 255 times the combined alpha: the exact quotient, rounded half up. A fully transparent result has
 no colour. -/

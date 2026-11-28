@@ -33,6 +33,7 @@ The display list for Inkproof charts, the compilers that produce it, and a refer
 - Pick colours, dash styles and markers for series in light and dark themes with checked contrast: `Theme`, `Theme.series`, `Theme.seriesStyle`, `Color.contrast`.
 - Colour an axis, its gridlines, labels, and legend and tooltip boxes for a light or dark theme: `Theme.axis`, `Theme.grid`, `Theme.border`, `Theme.legendFill`, `Theme.tooltipFill`, `Theme.applyAxis`.
 - Make a colour from hue, saturation, lightness and alpha: `Color.ofHsl`.
+- Dim or fade a colour, scaling its alpha and leaving its colour unchanged: `Color.scaleAlpha`.
 
 ## Requiring it
 

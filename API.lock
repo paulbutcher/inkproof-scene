@@ -54,6 +54,9 @@ def Inkproof.Scene.Color.over : Inkproof.Scene.Color → Inkproof.Scene.Color �
 theorem Inkproof.Scene.Color.over_a_toNat : ∀ (s d : Inkproof.Scene.Color), (s.over d).a.toNat = (255 * s.a.toNat + d.a.toNat * (255 - s.a.toNat) + 127) / 255
 theorem Inkproof.Scene.Color.over_opaque : ∀ {s : Inkproof.Scene.Color}, s.a = 255 → ∀ (d : Inkproof.Scene.Color), s.over d = s
 field Inkproof.Scene.Color.r : Inkproof.Scene.Color → UInt8
+def Inkproof.Scene.Color.scaleAlpha : Inkproof.Scene.Color → Rat → Inkproof.Scene.Color
+theorem Inkproof.Scene.Color.scaleAlpha_a : ∀ (c : Inkproof.Scene.Color) (f : Rat), (c.scaleAlpha f).a = UInt8.ofNat (↑c.a.toNat * Max.max 0 (Min.min 1 f) + 1 / 2).floor.toNat
+theorem Inkproof.Scene.Color.scaleAlpha_rgb : ∀ (c : Inkproof.Scene.Color) (f : Rat), (c.scaleAlpha f).r = c.r ∧ (c.scaleAlpha f).g = c.g ∧ (c.scaleAlpha f).b = c.b
 structure Inkproof.Scene.Column : Type
 field Inkproof.Scene.Column.hi : Inkproof.Scene.Column → Rat
 field Inkproof.Scene.Column.lo : Inkproof.Scene.Column → Rat
